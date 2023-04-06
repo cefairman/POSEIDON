@@ -755,16 +755,16 @@ def opacity_tables(rank, comm, wl_model, chemical_species, active_species,
 
             # Open HDF5 files containing molecular + atomic opacities
             if (opacity_database == 'High-T'):        # High T database
-                opac_file = h5py.File(input_file_path + '/opacity/Opacity_database_0.01cm-1.hdf5', 'r')  
+                opac_file = h5py.File(input_file_path + '/Opacity_database_0.01cm-1.hdf5', 'r')  
             elif (opacity_database == 'Temperate'):   # Low T database
-                opac_file = h5py.File(input_file_path + '/opacity/Opacity_database_0.01cm-1_Temperate.hdf5', 'r')
+                opac_file = h5py.File(input_file_path + '/Opacity_database_0.01cm-1_Temperate.hdf5', 'r')
 
             # Read P grid used in opacity files
             log_P_grid = np.array(opac_file['H2O/log(P)'])   # Units: log10(P/bar) - H2O choice arbitrary, all P grids are the same
             N_P = len(log_P_grid)                            # No. of pressures in opacity files
         
         # Open HDF5 files containing collision-induced absorption (CIA)
-        cia_file = h5py.File(input_file_path + '/opacity/Opacity_database_cia.hdf5', 'r')
+        cia_file = h5py.File(input_file_path + '/Opacity_database_cia.hdf5', 'r')
         
         # Initialise array of indices on pre-calculated pressure opacity grid prior to defined atmosphere layer pressures
         x = np.zeros(N_P_fine, dtype=np.int64)
