@@ -3542,7 +3542,7 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
                 span[q] = _quantile(param_vals_m[:,q], quant)
                 param_min = span[q][0]
                 param_max = span[q][1]
-        
+
             # Plot histogram
             low1, median, high1 = plot_parameter_panel(ax, param_vals_m[:,q], N_bins[q], param,
                                                        param_min, param_max, colour)
@@ -3554,9 +3554,19 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
                         verticalalignment='top', transform=ax.transAxes)
                 
             # Plot median and +/- 1σ confidence intervals
-            ax.axvline(median, lw=2, ls="-", alpha=0.7, color='darkgreen')
-            ax.axvline(low1, lw=1, ls="dashed", color='green')
-            ax.axvline(high1, lw=1, ls="dashed", color='green')
+            if (m == 0):
+                ax.axvline(median, lw=2, ls="-", alpha=0.7, color='dimgray')
+                ax.axvline(low1, lw=1, ls="dashed", color='black')
+                ax.axvline(high1, lw=1, ls="dashed", color='black')
+
+            # Plot retrieved parameter value as title
+            if (m == 0):
+                fmt = "{{0:{0}}}".format(title_fmt).format
+                title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+                title = title.format(fmt(median), fmt((median-low1)), fmt((high1-median)))
+                title = "{0} = {1}".format(param_label, title)
+                title = "{0}".format(title)
+                ax.set_title(title, fontsize = 12)
 
             # Create sub-axis for error bar
       #      newax = plt.gcf().add_axes(ax.get_position(), sharex=ax, frameon=False)
@@ -3588,14 +3598,6 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
       #          fontsize = 10, horizontalalignment='left', 
       #          verticalalignment='top', transform=ax.transAxes)
 
-        # Plot retrieved parameter value as title
-        if (N_models == 1):
-            fmt = "{{0:{0}}}".format(title_fmt).format
-            title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
-            title = title.format(fmt(median), fmt((median-low1)), fmt((high1-median)))
-            title = "{0} = {1}".format(param_label, title)
-            title = "{0}".format(title)
-            ax.set_title(title, fontsize = 12)
 
         # Add x-axis label
      #   ax.set_xlabel(param_label, fontsize = 16)
@@ -3608,12 +3610,14 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
 
     return fig
     
-    
+
 def plot_histograms(planet_name, models, plot_parameters,
                     parameter_colour_list = [], retrieval_colour_list = [], 
                     retrieval_labels = [], span = [], 
                     truths = [], N_bins = [], He_fraction = 0.17, 
                     N_rows = None, N_columns = None, axes = [],
+                    retrieval_codes = [], external_samples = [],
+                    external_param_names = [],
                     plt_label = None, save_fig = True):
 
     N_models = len(models)
@@ -3644,80 +3648,89 @@ def plot_histograms(planet_name, models, plot_parameters,
 
         model = models[m]
 
-        # Unpack model and atmospheric properties
-        model_name = model['model_name']
-        chemical_species = model['chemical_species']
-        param_species = model['param_species']
-        bulk_species = model['bulk_species']
-        X_param_names = model['X_param_names']
-        Atmosphere_dimension = model['Atmosphere_dimension']
-        N_params_cum = model['N_params_cum']
-        N_species = len(chemical_species)
+        if ((retrieval_codes == []) or (retrieval_codes[m] == 'POSEIDON')):
 
-        # Unpack number of free parameters
-        param_names = model['param_names']
+            # Unpack model and atmospheric properties
+            model_name = model['model_name']
+            chemical_species = model['chemical_species']
+            param_species = model['param_species']
+            bulk_species = model['bulk_species']
+            X_param_names = model['X_param_names']
+            Atmosphere_dimension = model['Atmosphere_dimension']
+            N_params_cum = model['N_params_cum']
+            N_species = len(chemical_species)
 
-        # Identify output directory location
-        output_dir = './POSEIDON_output/' + planet_name + '/retrievals/'
+            # Unpack number of free parameters
+            param_names = model['param_names']
+
+            # Identify output directory location
+            output_dir = './POSEIDON_output/' + planet_name + '/retrievals/'
+                
+            # Identify directory location where the plot will be saved
+            plot_dir = './POSEIDON_output/' + planet_name + '/plots/'
+
+            # Load relevant output directory
+            output_prefix = model_name + '-'
+
+            # Change directory into MultiNest result file folder
+            os.chdir(output_dir + 'MultiNest_raw/')
             
-        # Identify directory location where the plot will be saved
-        plot_dir = './POSEIDON_output/' + planet_name + '/plots/'
+            # Run PyMultiNest analyser to extract posterior samples
+            analyzer = pymultinest.Analyzer(N_params, outputfiles_basename = output_prefix,
+                                            verbose = False)
+            samples = analyzer.get_equal_weighted_posterior()[:,:-1]
 
-        # Load relevant output directory
-        output_prefix = model_name + '-'
+            # Change directory back to directory where user's python script is located
+            os.chdir('../../../../')
 
-        # Change directory into MultiNest result file folder
-        os.chdir(output_dir + 'MultiNest_raw/')
-        
-        # Run PyMultiNest analyser to extract posterior samples
-        analyzer = pymultinest.Analyzer(N_params, outputfiles_basename = output_prefix,
-                                        verbose = False)
-        samples = analyzer.get_equal_weighted_posterior()[:,:-1]
-
-        # Change directory back to directory where user's python script is located
-        os.chdir('../../../../')
-
-        # Find total number of available posterior samples from MultiNest 
-        N_samples = len(samples[:,0])
-     #   N_species_param = len(param_species)
+            # Find total number of available posterior samples from MultiNest 
+            N_samples = len(samples[:,0])
+        #   N_species_param = len(param_species)
 
 
 
-        # REPLACE BELOW WITH LOADING ATMOSPHERE OBJECT TO COMPUTE X AND
-        # ELEMENTAL RATIOS EVERYWHERE
+            # REPLACE BELOW WITH LOADING ATMOSPHERE OBJECT TO COMPUTE X AND
+            # ELEMENTAL RATIOS EVERYWHERE
 
-        if (Atmosphere_dimension > 1):
-            print("Note: this function is not currently configured for bulk gas " +
-                    "mixing ratios or element ratios for multidimensional retrievals")
+            if (Atmosphere_dimension > 1):
+                print("Note: this function is not currently configured for bulk gas " +
+                        "mixing ratios or element ratios for multidimensional retrievals")
 
-        # Create array to store the composition of the atmosphere  
-        log_X_stored = np.zeros(shape=(N_samples, N_species))
+            # Create array to store the composition of the atmosphere  
+            log_X_stored = np.zeros(shape=(N_samples, N_species))
 
-        # CLoad mixing ratios for atmosphere
-        for i in range(N_samples):
+            # CLoad mixing ratios for atmosphere
+            for i in range(N_samples):
 
-            if ('H2' and 'He' in bulk_species):
+                if ('H2' and 'He' in bulk_species):
 
-                # Extract mixing ratios from MultiNest samples
-                _, _, log_X_stored[i,2:], _, _, _, _, _ = split_params(samples[i], 
-                                                                        N_params_cum)
+                    # Extract mixing ratios from MultiNest samples
+                    _, _, log_X_stored[i,2:], _, _, _, _, _ = split_params(samples[i], 
+                                                                            N_params_cum)
 
-                # Add H2 and He mixing ratios
-                X_H2 = (1.0 - np.sum(np.power(10.0, log_X_stored[i,2:])))/(1.0 + He_fraction)
-                X_He = He_fraction*X_H2
+                    # Add H2 and He mixing ratios
+                    X_H2 = (1.0 - np.sum(np.power(10.0, log_X_stored[i,2:])))/(1.0 + He_fraction)
+                    X_He = He_fraction*X_H2
 
-                log_X_stored[i,0] = np.log10(X_H2)
-                log_X_stored[i,1] = np.log10(X_He)                                   
+                    log_X_stored[i,0] = np.log10(X_H2)
+                    log_X_stored[i,1] = np.log10(X_He)                                   
 
-            else:
+                else:
 
-                # Extract mixing ratios from MultiNest samples
-                _, _, log_X_stored[i,1:], _, _, _, _, _ = split_params(samples[i], 
-                                                                        N_params_cum)
+                    # Extract mixing ratios from MultiNest samples
+                    _, _, log_X_stored[i,1:], _, _, _, _, _ = split_params(samples[i], 
+                                                                            N_params_cum)
 
-                # Add bulk mixing ratio
-                X_0 = 1.0 - np.sum(np.power(10.0, log_X_stored[i,1:]), axis=0)
-                log_X_stored[i,0] = np.log10(X_0)
+                    # Add bulk mixing ratio
+                    X_0 = 1.0 - np.sum(np.power(10.0, log_X_stored[i,1:]), axis=0)
+                    log_X_stored[i,0] = np.log10(X_0)
+
+        # Or load samples in directly from external code
+        else:
+
+            param_names = np.array(external_param_names[m])
+            samples = external_samples[m]
+            N_samples = len(samples[:,0])
 
         # Create array to store parameter values for model m
         param_samples_m = np.zeros(shape=(N_samples, N_params))
