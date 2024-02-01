@@ -523,8 +523,16 @@ def extend_rad_transfer_grids(phi_edge, theta_edge, R_s, d, R_max, f_cloud,
         # Store sector indices for later referencing in radiative transfer
         j_sector[j] = j_sector_in                
         j_sector_back[j] = j_sector_back_in
-        
-    
+    print('theta_0:', theta_0)
+    print('phi_grid:', phi_grid*180/np.pi)
+    print('dphi_grid:', dphi_grid*180/np.pi)
+    print('theta_grid:', theta_grid*180/np.pi)
+    print('theta_edge_all:', theta_edge_all*180/np.pi)
+    print('N_sectors:', N_sectors, 'N_zones:', N_zones, 'N_phi:', N_phi)
+    print('j_sector:', j_sector, 'j_sector_back:', j_sector_back)
+    print('k_zone_back:', k_zone_back)
+    print('cloudy_sectors:', cloudy_sectors, 'cloudy_zones:', cloudy_zones)
+
     return phi_grid, dphi_grid, theta_grid, theta_edge_all, N_sectors, N_zones, \
            N_phi, j_sector, j_sector_back, k_zone_back, cloudy_sectors, cloudy_zones
         

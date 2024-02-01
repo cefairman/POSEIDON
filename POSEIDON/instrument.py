@@ -253,7 +253,7 @@ def init_instrument(wl, wl_data, half_width, instrument):
     fwhm = fwhm_instrument(wl_data, instrument)
     
     # PSF standard deviation (um)
-    sigma_um = 0.424661*fwhm    
+    sigma_um = 0.424661*fwhm
     
     if (photometric == False):
         
@@ -266,7 +266,7 @@ def init_instrument(wl, wl_data, half_width, instrument):
         
         sigma = np.zeros(shape=(N_bins))   # Standard deviation of PSF in grid spaces
         norm = np.zeros(shape=(N_bins))    # Normalisation factor for instrument function integration
-    
+
         # For each data point
         for n in range(N_bins):
             

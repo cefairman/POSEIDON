@@ -2016,6 +2016,44 @@ def plot_data(data, planet_name, wl_min = None, wl_max = None,
 
     return fig
 
+def plot_GMM_data(data):
+    """
+    Check read_data_mod and load_data_mod are able to read a GMM spectrum
+
+    not as functional as visuals.plot_data but this is only being used for testing purposes
+
+    :return:
+    """
+    # change error to
+    wl_data = data['wl_data']
+    half_bin = data['half_bin']
+    transit_depths = [data['ydata_1'], data['ydata_2']]
+    transit_depth_errors = [data['err_data_1'], data['err_data_2']]
+    wvs = data['wl_data']
+
+    check_plot = True
+    if check_plot:
+        td_mixture_samples = []
+        for comp_mean, comp_sigma in zip(transit_depths, transit_depth_errors):
+            comp_samples = np.vstack(
+                [np.random.normal(loc=comp_mean[i], scale=comp_sigma[i], size=100000) for i in range(len(wvs))])
+            td_mixture_samples.append(comp_samples)
+        td_mixture_samples = np.concatenate(td_mixture_samples, axis=1)
+
+        fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
+        parts = ax1.violinplot([d * 1.e6 for d in td_mixture_samples], wvs,
+                       vert=True, showmedians=True, showextrema=False, widths=0.2,
+                       bw_method="silverman", points=100)
+        # for pc in parts['bodies']:
+        #     pc.set_facecolor('indigo')
+        #     pc.set_alpha(1)
+        ax1.set_xlabel("Wavelength / $\\rm{{\mu m}}$", fontsize=14)
+        ax1.set_ylabel("Transit depth / ppm", fontsize=14)
+        plt.tight_layout()
+        plt.show()
+
+    return
+
 
 def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1, 
                            spectra_high1, spectra_high2, planet_name, 
