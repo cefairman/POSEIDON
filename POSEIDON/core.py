@@ -3358,6 +3358,11 @@ def load_data_mod(data_dir, datasets, instruments, wl_model, data_type=None,
         bin_right = np.concatenate([bin_right, bin_right_i])  # Length for each dataset: len_data[i]
         norm = np.concatenate([norm, norm_i])  # Length for each dataset: len_data[i]
 
+    if data_type == 'GMM':
+        # currently only dealing with one dataset, this will need to be changed later for multiple datasets
+        spectra = spectra[0]
+        errors = errors[0]
+
     # Cumulative sum of data lengths for indexing later
     len_data_idx = np.append(np.array([0]), np.cumsum(len_data)).astype(np.int64)
 
@@ -3384,11 +3389,6 @@ def load_data_mod(data_dir, datasets, instruments, wl_model, data_type=None,
 
     # Package data properties
     if data_type == "GMM":
-
-        # currently only dealing with one dataset, this will need to be changed later for multiple datasets
-        spectra = spectra[0]
-        errors = errors[0]
-
         data = {'datasets': datasets, 'instruments': instruments, 'wl_data': wl_data,
                 'half_bin': half_bin, 'spectra': spectra, 'errors': errors,
                 'sens': sens, 'len_data_idx': len_data_idx, 'psf_sigma': psf_sigma,
