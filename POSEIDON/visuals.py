@@ -2027,14 +2027,16 @@ def plot_GMM_data(data):
     # change error to
     wl_data = data['wl_data']
     half_bin = data['half_bin']
-    transit_depths = [data['ydata_1'], data['ydata_2']]
-    transit_depth_errors = [data['err_data_1'], data['err_data_2']]
+    transit_depths = data['spectra']
+    transit_depth_errors = data['errors']
     wvs = data['wl_data']
 
     check_plot = True
     if check_plot:
         td_mixture_samples = []
         for comp_mean, comp_sigma in zip(transit_depths, transit_depth_errors):
+            print('comp_mean', comp_mean)
+            print('comp_sigma', comp_sigma)
             comp_samples = np.vstack(
                 [np.random.normal(loc=comp_mean[i], scale=comp_sigma[i], size=100000) for i in range(len(wvs))])
             td_mixture_samples.append(comp_samples)

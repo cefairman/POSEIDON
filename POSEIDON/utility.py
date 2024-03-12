@@ -468,24 +468,47 @@ def read_data_mod(data_dir, fname, wl_unit='micron', bin_width='half', data_type
     '''
 
     # Load data file
-    data = pd.read_csv(data_dir + '/' + fname, sep='[\\s]{1,20}',
+    if data_type != 'GMM':
+        data = pd.read_csv(data_dir + '/' + fname, sep='[\\s]{1,20}',
                        header=None, skiprows=skiprows, engine='python')
 
-    # Load wavelength and half bin width, then convert both to μm
-    if (wl_unit in ['micron', 'um', 'μm']):
-        wl_data = np.array(data[0])
-        wl_bin = np.array(data[1])
-    elif (wl_unit == 'nm'):
-        wl_data = np.array(data[0]) * 1e-3
-        wl_bin = np.array(data[1]) * 1e-3
-    elif (wl_unit == 'A'):
-        wl_data = np.array(data[0]) * 1e-4
-        wl_bin = np.array(data[1]) * 1e-4
-    elif (wl_unit == 'm'):
-        wl_data = np.array(data[0]) * 1e6
-        wl_bin = np.array(data[1]) * 1e6
+        # Load wavelength and half bin width, then convert both to μm
+        if (wl_unit in ['micron', 'um', 'μm']):
+            wl_data = np.array(data[0])
+            wl_bin = np.array(data[1])
+        elif (wl_unit == 'nm'):
+            wl_data = np.array(data[0]) * 1e-3
+            wl_bin = np.array(data[1]) * 1e-3
+        elif (wl_unit == 'A'):
+            wl_data = np.array(data[0]) * 1e-4
+            wl_bin = np.array(data[1]) * 1e-4
+        elif (wl_unit == 'm'):
+            wl_data = np.array(data[0]) * 1e6
+            wl_bin = np.array(data[1]) * 1e6
+        else:
+            raise Exception("Error: unrecognised wavelength unit when reading data.")
+
     else:
-        raise Exception("Error: unrecognised wavelength unit when reading data.")
+        # loading separately for GMM data
+        data = np.loadtxt(data_dir + '/' + fname, skiprows=skiprows)
+
+        # Load wavelength and half bin width, then convert both to μm
+        if (wl_unit in ['micron', 'um', 'μm']):
+            wl_data = data[:, 0]
+            wl_bin = data[:, 1]
+        elif (wl_unit == 'nm'):
+            wl_data = data[:, 0] * 1e-3
+            wl_bin = data[:, 1] * 1e-3
+        elif (wl_unit == 'A'):
+            wl_data = data[:, 0] * 1e-4
+            wl_bin = data[:, 1] * 1e-4
+        elif (wl_unit == 'm'):
+            wl_data = data[:, 0] * 1e6
+            wl_bin = data[:, 1] * 1e6
+        else:
+            raise Exception("Error: unrecognised wavelength unit when reading data.")
+
+
 
     # Divide bin widths by 2 if the file contains full bin widths
     if (bin_width == 'half'):
@@ -500,30 +523,21 @@ def read_data_mod(data_dir, fname, wl_unit='micron', bin_width='half', data_type
         if (spectrum_unit in ['(Rp/Rs)^2', '(Rp/R*)^2',
                               'transit_depth', 'eclipse_depth',
                               'Fp/Fs', 'Fp/F*', 'Fp']):
-            spectrum_1 = np.array(data[2])
-            err_1 = np.array(data[3])
-            spectrum_2 = np.array(data[4])
-            err_2 = np.array(data[5])
+            spectra = data[:, 2::2].T
+            errors = data[:, 3::2].T
         elif (spectrum_unit == 'ppm'):
-            spectrum_1 = np.array(data[2]) * 1e-6
-            err_1 = np.array(data[3]) * 1e-6
-            spectrum_2 = np.array(data[4]) * 1e-6
-            err_2 = np.array(data[5]) * 1e-6
+            spectra = data[:, 2::2].T * 1e-6
+            errors = data[:, 3::2].T * 1e-6
         elif (spectrum_unit in ['%', 'percent']):
-            spectrum_1 = np.array(data[2]) * 1e-2
-            err_1 = np.array(data[3]) * 1e-2
-            spectrum_2 = np.array(data[4]) * 1e-2
-            err_2 = np.array(data[5]) * 1e-2
+            spectra = data[:, 2::2].T * 1e-2
+            errors = data[:, 3::2].T * 1e-2
         elif (spectrum_unit in ['Rp/Rs', 'Rp/R*']):
-            spectrum_1 = (np.array(data[2])) ** 2
-            err_1 = (2.0 * (
-                        np.array(data[3]) / np.array(data[2]))) * spectrum_1  # Error propagation for Rp/Rs -> (Rp/Rs)^2
-            spectrum_2 = (np.array(data[4])) ** 2
-            err_2 = (2.0 * (
-                        np.array(data[5]) / np.array(data[4]))) * spectrum_2  # Error propagation for Rp/Rs -> (Rp/Rs)^2
+            spectra = data[:, 2::2].T ** 2
+            errors = (2.0 * (data[:, 3::2] / data[:, 2:2])) * spectra  # Error propagation for Rp/Rs -> (Rp/Rs)^2
         else:
             raise Exception("Error: unrecognised spectrum unit when reading file.")
-        return wl_data, half_bin, spectrum_1, err_1, spectrum_2, err_2
+
+        return wl_data, half_bin, spectra, errors
 
     else:
         if (spectrum_unit in ['(Rp/Rs)^2', '(Rp/R*)^2',
@@ -1717,6 +1731,7 @@ def write_MultiNest_results(planet, model, data, retrieval_name,
 
     # Store best-fitting reduced chi-squared
     max_likelihood = best_fit['log_likelihood']
+    print('Max likelihood = ', max_likelihood)
     best_fit_params = best_fit['parameters']
     norm_log = (-0.5 * np.log(2.0 * np.pi * err_data * err_data)).sum()
     best_chi_square = -2.0 * (max_likelihood - norm_log)
@@ -1763,12 +1778,10 @@ def write_MultiNest_results_mod(planet, model, data, retrieval_name,
         err_data = data['err_data']
         ydata = data['ydata']
     else:
-        err_data_1 = data['err_data_1']
-        ydata_1 = data['ydata_1']
-        err_data_2 = data['err_data_2']
-        ydata_2 = data['ydata_2']
+        errors = data['errors']
+        spectra = data['spectra']
         # ydata currently only used for length. Therefore, at least for now, y_data = y_data_1
-        y_data = y_data_1
+        y_data = spectra[0]
 
     instruments = data['instruments']
     datasets = data['datasets']
@@ -1792,6 +1805,7 @@ def write_MultiNest_results_mod(planet, model, data, retrieval_name,
 
     # Store best-fitting reduced chi-squared
     max_likelihood = best_fit['log_likelihood']
+    print('Max Likelihood = ', max_likelihood)
     best_fit_params = best_fit['parameters']
     if data_type != 'GMM':
         norm_log = (-0.5 * np.log(2.0 * np.pi * err_data * err_data)).sum()

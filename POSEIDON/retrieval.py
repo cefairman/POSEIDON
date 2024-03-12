@@ -381,7 +381,7 @@ def run_retrieval_mod(planet, star, model, opac, data, priors, wl, P,
             print('POSEIDON retrieval finished in ' + str(total) + ' hours')
 
             # Write POSEIDON retrieval output files
-            write_MultiNest_results(planet, model, data, retrieval_name,
+            write_MultiNest_results_mod(planet, model, data, retrieval_name,
                                     N_live, ev_tol, sampling_algorithm, wl, R, data_type)
 
             # Compute samples of retrieved P-T, mixing ratio profiles, and spectrum
@@ -1141,8 +1141,8 @@ def PyMultiNest_retrieval_mod(planet, star, model, opac, data, prior_types,
         norm_log_default = (-0.5 * np.log(2.0 * np.pi * err_data * err_data)).sum()
     else:
         # extract observation information from data object
-        transit_depths = np.array([data['ydata_1'], data['ydata_2']])
-        transit_depth_errors = np.array([data['err_data_1'], data['err_data_2']])
+        transit_depths = data['spectra']
+        transit_depth_errors = data['errors']
         wvs = data['wl_data']
         # precompute likelihood constants for GMM data
         S = 1

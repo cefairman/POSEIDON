@@ -1213,7 +1213,7 @@ def load_aerosol_grid(aerosol_species, grid = 'aerosol',
     aerosol_species = np.array(aerosol_species)
     
     # Open chemistry grid HDF5 file
-    database = h5py.File(input_file_path + 'opacity/'  + grid + '_database_emission.hdf5', 'r')
+    database = h5py.File(input_file_path + '/opacity/'  + grid + '_database_emission.hdf5', 'r')
 
     # Load the dimensions of the grid
     wl_grid = np.array(database['Info/Wavelength grid'])
