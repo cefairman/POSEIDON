@@ -71,7 +71,7 @@ def plot_effective_cross_section_aerosol(aerosol, wl, r_m):
                         "POSEIDON input folder.")
 
     try :
-        database = h5py.File(input_file_path + 'opacity/aerosol_database.hdf5', 'r')
+        database = h5py.File(input_file_path + '/opacity/aerosol_database.hdf5', 'r')
     except :
         raise Exception('Please put aerosol_database.hdf5 in the inputs/opacity folder')
     
@@ -1213,7 +1213,7 @@ def load_aerosol_grid(aerosol_species, grid = 'aerosol',
     aerosol_species = np.array(aerosol_species)
     
     # Open chemistry grid HDF5 file
-    database = h5py.File(input_file_path + 'opacity/'  + grid + '_database_emission.hdf5', 'r')
+    database = h5py.File(input_file_path + '/opacity/'  + grid + '_database_emission.hdf5', 'r')
 
     # Load the dimensions of the grid
     wl_grid = np.array(database['Info/Wavelength grid'])
@@ -2641,25 +2641,25 @@ def precompute_cross_sections_one_aerosol(file_name, aerosol_name):
 
         counter += 1
 
-    title = input_file_path + 'opacity/refractive_indices/eff_ext_Mie_' + aerosol_name
+    title = input_file_path + '/opacity/refractive_indices/eff_ext_Mie_' + aerosol_name
     np.save(title,ext_array,allow_pickle = True)
 
-    title = input_file_path + 'opacity/refractive_indices/eff_scat_Mie_' + aerosol_name
+    title = input_file_path + '/opacity/refractive_indices/eff_scat_Mie_' + aerosol_name
     np.save(title,scat_array,allow_pickle = True)
 
-    title = input_file_path + 'opacity/refractive_indices/eff_abs_Mie_' + aerosol_name
+    title = input_file_path + '/opacity/refractive_indices/eff_abs_Mie_' + aerosol_name
     np.save(title,abs_array,allow_pickle = True)
 
-    title = input_file_path + 'opacity/refractive_indices/eff_back_Mie_' + aerosol_name
+    title = input_file_path + '/opacity/refractive_indices/eff_back_Mie_' + aerosol_name
     np.save(title,back_array,allow_pickle = True)
 
-    title = input_file_path + 'opacity/refractive_indices/eff_w_Mie_' + aerosol_name
+    title = input_file_path + '/opacity/refractive_indices/eff_w_Mie_' + aerosol_name
     np.save(title,w_array,allow_pickle = True)
 
-    title = input_file_path + 'opacity/refractive_indices/eff_g_Mie_' + aerosol_name
+    title = input_file_path + '/opacity/refractive_indices/eff_g_Mie_' + aerosol_name
     np.save(title,g_array,allow_pickle = True)
 
-    title = input_file_path + 'opacity/refractive_indices/jumbo_Mie_' + aerosol_name
+    title = input_file_path + '/opacity/refractive_indices/jumbo_Mie_' + aerosol_name
     jumbo_array.append([ext_array,scat_array,abs_array,back_array,w_array,g_array])
     np.save(title,jumbo_array,allow_pickle = True)
 
@@ -2825,7 +2825,7 @@ def make_aerosol_database():
                         "POSEIDON input folder.")
 
     # Load in the aerosol list
-    mydir = input_file_path + "opacity/refractive_indices/"
+    mydir = input_file_path + "/opacity/refractive_indices/"
     file_list = glob.glob(mydir + "jumbo*.npy")
     file_list.sort()
 
@@ -2883,7 +2883,7 @@ def make_aerosol_database():
         aerosols_dict[aerosol_list[i] + '_w'] = eff_w 
 
     # Initialize and generate new data_base 
-    database = h5py.File(input_file_path + 'opacity/aerosol_database_emission.hdf5', 'w')
+    database = h5py.File(input_file_path + '/opacity/aerosol_database_emission.hdf5', 'w')
 
     h = database.create_group('Info')
     h1 = h.create_dataset('Wavelength grid', data=wavelengths, compression='gzip', dtype='float64', shuffle=True)
@@ -2927,7 +2927,7 @@ def make_aerosol_database():
 
     print('---------------------')
     print('Saving new aerosol database as')
-    print(input_file_path + 'opacity/aerosol_database_emission.hdf5')
+    print(input_file_path + '/opacity/aerosol_database_emission.hdf5')
     print('---------------------')
 
     database.close()
