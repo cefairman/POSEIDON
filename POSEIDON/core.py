@@ -46,6 +46,9 @@ from .clouds import Mie_cloud, Mie_cloud_free, load_aerosol_grid
 
 from .utility import mock_missing
 
+# gmm imports
+from .utility import read_data_gmm
+
 try:
     import cupy as cp
 except ImportError:
@@ -2587,12 +2590,15 @@ def load_data(data_dir, datasets, instruments, wl_model, offset_datasets = None,
     # For relative offsets, find which data indices the offset applies to
     if (offset_datasets is not None):
         offset_datasets = np.array(offset_datasets)
-        if (len(offset_datasets) > 1):
-            raise Exception("Error: only one dataset can have a free offset.")
+
+        if (len(offset_datasets) > 2):
+            raise Exception("Error: only two datasets can have a free offset.")
+        
         if (offset_datasets[0] in datasets):
             offset_dataset_idx = np.where(datasets == offset_datasets[0])[0][0]
             offset_data_start = len_data_idx[offset_dataset_idx]  # Data index of first point with offset
             offset_data_end = len_data_idx[offset_dataset_idx+1]  # Data index of last point with offset + 1
+        
         else: 
             raise Exception("Dataset chosen for relative offset is not included.")
     else:
@@ -2611,8 +2617,170 @@ def load_data(data_dir, datasets, instruments, wl_model, offset_datasets = None,
             'sens': sens, 'len_data_idx': len_data_idx, 'psf_sigma': psf_sigma,
             'norm': norm, 'bin_left': bin_left, 'bin_cent': bin_cent, 
             'bin_right': bin_right, 'offset_start': offset_data_start,
+            'offset_end': offset_data_end, 'fwhm': fwhm}
+
+    return data
+
+
+def load_data_gmm(data_dir, datasets, instruments, wl_model, data_type=None,
+                  leaves=None, offset_datasets=None,
+                  wl_unit='micron', bin_width='half', spectrum_unit='(Rp/Rs)^2',
+                  skiprows=None):
+    '''
+    Modified load_data.
+    Added Args:
+        spectrum_type (str):
+            None: For normal datasets with Gaussian distributed symmetrical errors.
+            'GMM': for David's Gaussian Mixed Model (GMM) non uniform errors.
+                GMM assumes a mixture of 2 Gaussians with 2 spectrum values and 2 error values.
+        leaves (int):
+            None: for normal datasets
+            int : for GMM datasets, sets the number of leaves
+    Load the user provided datasets into the format expected by POSEIDON.
+    Also generate the functions required for POSEIDON to later calculate
+    the binned data for each instrument (e.g. the PSFs for each instrument)
+    corresponding to model spectra.
+
+    Args:
+        data_dir (str):
+            Path to the directory containing the user's data files.
+        datasets (list of str):
+            List containing file names of the user's data files.
+        instruments (list of str):
+            List containing the instrument names corresponding to each data file
+            (e.g. WFC3_G141, JWST_NIRSpec_PRISM, JWST_NIRISS_SOSS_Ord2).
+        wl_model (np.array of float):
+            Model wavelength grid (μm).
+        offset_datasets (list of str):
+            If applying a relative offset to one or more datasets, this list
+            gives the file names of the datasets that will have free offsets
+            applied (note: currently only supports *one* offset dataset).
+        wl_unit (str):
+            Unit of wavelength column (first column in file)
+            (Options: micron (or equivalent) / nm / A / m)
+        bin_width (str):
+            Whether bin width (second column) is half or full width
+            (Options: half / full).
+        spectrum_unit (str):
+            Unit of spectrum (third column) and spectrum errors (fourth column)
+            (Options: (Rp/Rs)^2 / Rp/Rs / Fp/Fs / Fp (or equivalent units)).
+        skiprows (int):
+            The number of rows to skip (e.g. use 1 if file has a header line).
+
+    Returns:
+        data (dict):
+            Collection of data properties required for POSEIDON's instrument
+            simulator (i.e. to create simulated binned data during retrievals).
+
+    '''
+
+    # If the user is running the retrieval tutorial, point to the reference data
+    if (data_dir == 'Tutorial/WASP-999b'):
+        data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                '.', 'reference_data/observations/WASP-999b/'))
+
+    # Convert lists to numpy arrays
+    instruments = np.array(instruments)
+    datasets = np.array(datasets)
+
+    # Initialise arrays containing input properties of the data
+    # @char
+    if data_type == 'GMM':
+        # check number of leaves has been defined
+        # if leaves is None:
+        #     raise Exception("For GMM data, please specify number of leaves")
+        # elif not leaves.is_integer():
+        #     raise Exception("Number of leaves must be an integer value")
+        wl_data, half_bin, len_data = (np.array([]) for _ in range(3))
+        ydata, err_data = ([] for _ in range(2))
+    else:
+        wl_data, half_bin, ydata, err_data, len_data = (np.array([]) for _ in range(5))
+
+    # Initialise arrays containing instrument function properties
+    psf_sigma, fwhm, sens, norm = (np.array([]) for _ in range(4))
+    bin_left, bin_cent, bin_right, norm = (np.array([]).astype(np.int64) for _ in range(4))
+
+    # For each dataset
+    for i in range(len(datasets)):
+        # @char
+        if data_type == 'GMM':
+            # Read data files
+            wl_data_i, half_bin_i, \
+                ydata_i, err_data_i = read_data_gmm(data_dir, datasets[i], wl_unit,
+                                                    bin_width, data_type, spectrum_unit, skiprows)
+            # Combine datasets
+            wl_data = np.concatenate([wl_data, wl_data_i])
+            half_bin = np.concatenate([half_bin, half_bin_i])
+            ydata.append(ydata_i)
+            err_data.append(err_data_i)
+
+            # Length of each dataset (used for indexing the combined dataset, if necessary to extract one specific dataset later)
+            len_data = np.concatenate([len_data, np.array([len(wl_data_i)])])
+
+        else:
+            # Read data files
+            wl_data_i, half_bin_i, \
+                ydata_i, err_data_i = read_data(data_dir, datasets[i], wl_unit,
+                                                bin_width, spectrum_unit, skiprows)
+
+            # Combine datasets
+            wl_data = np.concatenate([wl_data, wl_data_i])
+            half_bin = np.concatenate([half_bin, half_bin_i])
+            ydata = np.concatenate([ydata, ydata_i])
+            err_data = np.concatenate([err_data, err_data_i])
+
+            # Length of each dataset (used for indexing the combined dataset, if necessary to extract one specific dataset later)
+            len_data = np.concatenate([len_data, np.array([len(ydata_i)])])
+
+        # Read instrument transmission functions, compute PSF std dev, and identify locations of each data bin on model grid
+        psf_sigma_i, fwhm_i, sens_i, bin_left_i, \
+            bin_cent_i, bin_right_i, norm_i = init_instrument(wl_model, wl_data_i, half_bin_i, instruments[i])
+
+        # Combine instrument properties into single arrays for convenience (can index by len_data[i] to extract each later)
+        psf_sigma = np.concatenate([psf_sigma, psf_sigma_i])  # Length for each dataset: len_data[i]
+        fwhm = np.concatenate([fwhm, fwhm_i])  # Length for each dataset: len_data[i]
+        sens = np.concatenate([sens, sens_i])  # Length for each dataset: N_wl
+        bin_left = np.concatenate([bin_left, bin_left_i])  # Length for each dataset: len_data[i]
+        bin_cent = np.concatenate([bin_cent, bin_cent_i])  # Length for each dataset: len_data[i]
+        bin_right = np.concatenate([bin_right, bin_right_i])  # Length for each dataset: len_data[i]
+        norm = np.concatenate([norm, norm_i])  # Length for each dataset: len_data[i]
+
+    if data_type == 'GMM':
+        # currently only dealing with one dataset, this will need to be changed later for multiple datasets
+        ydata = ydata[0]
+        err_data = err_data[0]
+
+    # Cumulative sum of data lengths for indexing later
+    len_data_idx = np.append(np.array([0]), np.cumsum(len_data)).astype(np.int64)
+
+    # For relative offsets, find which data indices the offset applies to
+    if (offset_datasets is not None):
+        offset_datasets = np.array(offset_datasets)
+        if (len(offset_datasets) > 1):
+            raise Exception("Error: only one dataset can have a free offset.")
+        if (offset_datasets[0] in datasets):
+            offset_dataset_idx = np.where(datasets == offset_datasets[0])[0][0]
+            offset_data_start = len_data_idx[offset_dataset_idx]  # Data index of first point with offset
+            offset_data_end = len_data_idx[offset_dataset_idx + 1]  # Data index of last point with offset + 1
+        else:
+            raise Exception("Dataset chosen for relative offset is not included.")
+    else:
+        offset_data_start = 0  # Dummy values when no offsets included
+        offset_data_end = 0
+
+    # Check that the model wavelength grid covers all the data bins
+    if (np.any((wl_data - half_bin) < wl_model[0])):
+        raise Exception("Some data lies below the lowest model wavelength, reduce wl_min.")
+    elif (np.any((wl_data + half_bin) > wl_model[-1])):
+        raise Exception("Some data lies above the highest model wavelength, increase wl_max.")
+
+    data = {'datasets': datasets, 'instruments': instruments, 'wl_data': wl_data,
+            'half_bin': half_bin, 'ydata': ydata, 'err_data': err_data,
+            'sens': sens, 'len_data_idx': len_data_idx, 'psf_sigma': psf_sigma,
+            'norm': norm, 'bin_left': bin_left, 'bin_cent': bin_cent,
+            'bin_right': bin_right, 'offset_start': offset_data_start,
             'offset_end': offset_data_end, 'fwhm': fwhm
-           }
+            }
 
     return data
 
@@ -2737,6 +2905,8 @@ def set_priors(planet, star, model, data, prior_types = {}, prior_ranges = {}):
                              'T_phot': [T_phot, err_T_phot], 
                              'log_g_phot': [log_g_phot, err_log_g_phot], 
                              'delta_rel': [-1.0e-3, 1.0e-3],
+                             'delta_rel_1': [-1.0e-3, 1.0e-3],
+                             'delta_rel_2': [-1.0e-3, 1.0e-3],
                              'log_b': [np.log10(0.001*np.min(err_data**2)),
                                        np.log10(100.0*np.max(err_data**2))],
                              'C_to_O': [0.3,1.9],

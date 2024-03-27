@@ -27,6 +27,9 @@ from .parameters import unpack_stellar_params
 from .stellar import precompute_stellar_spectra, stellar_contamination_general
 from .chemistry import load_chemistry_grid
 
+# GMM imports
+from .utility import write_MultiNest_results_gmm
+
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
@@ -227,6 +230,622 @@ def run_retrieval(planet, star, model, opac, data, priors, wl, P,
 
     # Change directory back to directory where user's python script is located
     os.chdir('../../../../')
+
+
+def run_retrieval_gmm(planet, star, model, opac, data, priors, wl, P,
+                  P_ref=None, R_p_ref=None, P_param_set=1.0e-2,
+                  R=None, retrieval_name=None, He_fraction=0.17,
+                  N_slice_EM=2, N_slice_DN=4, constant_gravity=False,
+                  spectrum_type='transmission', data_type=None,
+                  y_p=np.array([0.0]),
+                  stellar_T_step=20, stellar_log_g_step=0.1,
+                  N_live=400, ev_tol=0.5, sampling_algorithm='MultiNest',
+                  resume=False, verbose=True, sampling_target='parameter',
+                  chem_grid='fastchem', N_output_samples=1000):
+    '''
+    run_retrieval modified for GMM
+
+    Uses PyMulitnest_retrieval_gmm and write_MultiNest_results_gmm
+
+    ADD DOCSTRING
+    '''
+
+    # Unpack planet name
+    planet_name = planet['planet_name']
+
+    # Unpack prior types and ranges
+    prior_types = priors['prior_types']
+    prior_ranges = priors['prior_ranges']
+
+    # Unpack model properties
+    model_name = model['model_name']
+    chemical_species = model['chemical_species']
+    param_species = model['param_species']
+    param_names = model['param_names']
+    stellar_contam = model['stellar_contam']
+    reference_parameter = model['reference_parameter']
+    disable_atmosphere = model['disable_atmosphere']
+    X_profile = model['X_profile']
+
+    # Unpack stellar properties
+    R_s = star['R_s']
+    stellar_interp_backend = star['stellar_interp_backend']
+
+    # Check that one of the two reference parameters has been provided by the user
+    if ((reference_parameter == 'R_p_ref') and (P_ref is None)):
+        raise Exception("Error: Must provide P_ref when R_p_ref is a free parameter.")
+    if ((reference_parameter == 'P_ref') and (R_p_ref is None)):
+        raise Exception("Error: Must provide R_p_ref when P_ref is a free parameter.")
+
+    if ((disable_atmosphere == True) and ('transmission' not in spectrum_type)):
+        raise Exception("Error: An atmosphere can only be disabled for transmission spectra ")
+
+    N_params = len(param_names)
+
+    if (retrieval_name is None):
+        retrieval_name = model_name
+    else:
+        retrieval_name = model_name + '_' + retrieval_name
+
+    # Identify output directory location
+    output_dir = './POSEIDON_output/' + planet_name + '/retrievals/'
+
+    # Load chemistry grid (e.g. equilibrium chemistry) if option selected
+    if (X_profile == 'chem_eq'):
+        chemistry_grid = load_chemistry_grid(param_species, chem_grid, comm, rank)
+    else:
+        chemistry_grid = None
+
+    # Pre-compute stellar spectra for models with unocculted spots / faculae
+    if (stellar_contam != None):
+
+        if (rank == 0):
+            print("Pre-computing stellar spectra before starting retrieval...")
+
+        # Interpolate and store stellar photosphere and heterogeneity spectra
+        T_phot_grid, T_het_grid, \
+            log_g_phot_grid, log_g_het_grid, \
+            I_phot_grid, I_het_grid = precompute_stellar_spectra(wl, star, prior_types,
+                                                                 prior_ranges, stellar_contam,
+                                                                 stellar_T_step, stellar_log_g_step,
+                                                                 stellar_interp_backend,
+                                                                 comm)
+
+    # No stellar grid precomputation needed for models with uniform star
+    else:
+
+        T_phot_grid, T_het_grid = None, None
+        log_g_phot_grid, log_g_het_grid = None, None
+        I_phot_grid, I_het_grid = None, None
+
+    # Interpolate stellar spectrum onto planet wavelength grid (one-time operation)
+    if (('transmission' not in spectrum_type) and (star != None)):
+
+        # Load stellar spectrum
+        F_s = star['F_star']
+        wl_s = star['wl_star']
+
+        if (wl_s != wl):
+            raise Exception("Error: wavelength grid for stellar spectrum does " +
+                            "not match wavelength grid of planet spectrum. " +
+                            "Did you forget to provide 'wl' to create_star?")
+
+        # Distance only used for flux ratios, so set it to 1 since it cancels
+        if (d is None):
+            planet['system_distance'] = 1
+            d = planet['system_distance']
+
+        # Convert stellar surface flux to observed flux at Earth
+        F_s_obs = (R_s / d) ** 2 * F_s
+
+    # Skip for directly imaged planets or brown dwarfs
+    else:
+
+        # Stellar flux not needed for transmission spectra
+        F_s_obs = None
+
+    if (rank == 0):
+        print("POSEIDON now running '" + retrieval_name + "'")
+
+    # Run POSEIDON retrieval using PyMultiNest
+    if (sampling_algorithm == 'MultiNest'):
+
+        # Change directory into MultiNest result file folder
+        os.chdir(output_dir + 'MultiNest_raw/')
+
+        # Set basename for MultiNest output files
+        basename = retrieval_name + '-'
+
+        # Begin retrieval timer
+        if (rank == 0):
+            t0 = time.perf_counter()
+
+        # Run MultiNest
+        PyMultiNest_retrieval_gmm(planet, star, model, opac, data, prior_types,
+                              prior_ranges, spectrum_type, wl, P, P_ref,
+                              R_p_ref, P_param_set, He_fraction, N_slice_EM,
+                              N_slice_DN, N_params, T_phot_grid, T_het_grid,
+                              log_g_phot_grid, log_g_het_grid, I_phot_grid,
+                              I_het_grid, y_p, F_s_obs, constant_gravity,
+                              chemistry_grid, data_type,
+                              resume=resume, verbose=verbose,
+                              outputfiles_basename=basename,
+                              n_live_points=N_live, multimodal=False,
+                              evidence_tolerance=ev_tol, log_zero=-1e90,
+                              importance_nested_sampling=False,
+                              sampling_efficiency=sampling_target,
+                              const_efficiency_mode=False)
+
+        # Write retrieval results to file
+        if (rank == 0):
+
+            # Write retrieval runtime to terminal
+            t1 = time.perf_counter()
+            total = round_sig_figs((t1 - t0) / 3600.0, 2)  # Round to 2 significant figures
+
+            print('POSEIDON retrieval finished in ' + str(total) + ' hours')
+
+            # Write POSEIDON retrieval output files
+            write_MultiNest_results_gmm(planet, model, data, retrieval_name,
+                                    N_live, ev_tol, sampling_algorithm, wl, R, data_type)
+
+            # Compute samples of retrieved P-T, mixing ratio profiles, and spectrum
+            T_low2, T_low1, T_median, \
+                T_high1, T_high2, \
+                log_X_low2, log_X_low1, \
+                log_X_median, log_X_high1, \
+                log_X_high2, \
+                spec_low2, spec_low1, \
+                spec_median, spec_high1, \
+                spec_high2 = retrieved_samples(planet, star, model, opac, data,
+                                               retrieval_name, wl, P, P_ref, R_p_ref,
+                                               P_param_set, He_fraction, N_slice_EM,
+                                               N_slice_DN, spectrum_type, T_phot_grid,
+                                               T_het_grid, log_g_phot_grid,
+                                               log_g_het_grid, I_phot_grid,
+                                               I_het_grid, y_p, F_s_obs,
+                                               constant_gravity, chemistry_grid,
+                                               N_output_samples)
+
+            # Save sampled spectrum
+            write_retrieved_spectrum(retrieval_name, wl, spec_low2,
+                                     spec_low1, spec_median, spec_high1, spec_high2)
+
+            # Only write retrieved P-T profile and mixing ratio arrays if atmosphere enabled
+            if (disable_atmosphere == False):
+                # Save sampled P-T profile
+                write_retrieved_PT(retrieval_name, P, T_low2, T_low1,
+                                   T_median, T_high1, T_high2)
+
+                # Save sampled mixing ratio profiles
+                write_retrieved_log_X(retrieval_name, chemical_species, P,
+                                      log_X_low2, log_X_low1, log_X_median,
+                                      log_X_high1, log_X_high2)
+
+            print("All done! Output files can be found in " + output_dir + "results/")
+
+    comm.Barrier()
+
+    # Change directory back to directory where user's python script is located
+    os.chdir('../../../../')
+    
+
+def PyMultiNest_retrieval_gmm(planet, star, model, opac, data, prior_types,
+                              prior_ranges, spectrum_type, wl, P, P_ref_set,
+                              R_p_ref_set, P_param_set, He_fraction, N_slice_EM,
+                              N_slice_DN, N_params, T_phot_grid, T_het_grid,
+                              log_g_phot_grid, log_g_het_grid, I_phot_grid,
+                              I_het_grid, y_p, F_s_obs, constant_gravity,
+                              chemistry_grid, data_type=None, **kwargs):
+    '''
+    @char: Modified for GMM data
+
+    functions changed:
+        - write_multinest_results - removed log norm calc. Need to add in GMM log norm
+        - log-likelihood (defined within PyMultiNest_retrieval_mod) - added new log likelihood calculation
+            (also in LogLikelihood: 'GMM' cannot handle error bar inflation.
+        - in PyMultiNest_retrieval_mod - changed norm_log to l_const for 'GMM' (in conditional statement)
+
+
+    Main function for conducting atmospheric retrievals with PyMultiNest.
+
+    '''
+
+    # Unpack model properties
+    param_names = model['param_names']
+    param_species = model['param_species']
+    X_params = model['X_param_names']
+    N_params_cum = model['N_params_cum']
+    Atmosphere_dimension = model['Atmosphere_dimension']
+    species_EM_gradient = model['species_EM_gradient']
+    species_DN_gradient = model['species_DN_gradient']
+    error_inflation = model['error_inflation']
+    offsets_applied = model['offsets_applied']
+    stellar_contam = model['stellar_contam']
+
+    # Unpack planet properties
+    R_p = planet['planet_radius']
+    d = planet['system_distance']
+
+    # Unpack stellar properties
+    R_s = star['R_s']
+
+    # Unpack number of free mixing ratio parameters for prior function
+    N_species_params = len(X_params)
+
+    # Assign PyMultiNest keyword arguments
+    n_dims = N_params
+
+    # Pre-compute normalisation for log-likelihood
+    if data_type != 'GMM':
+        err_data = data['err_data']
+        norm_log_default = (-0.5 * np.log(2.0 * np.pi * err_data * err_data)).sum()
+
+    else:
+        # extract observation information from data object
+        transit_depths = data['ydata']
+        transit_depth_errors = data['err_data']
+        wvs = data['wl_data']
+        # precompute likelihood constants for GMM data
+        S = 1
+        N = len(wvs)
+        M = transit_depths.shape[0]
+        ln_weights = np.log(np.ones(M) / M)
+        ln_a = -0.5 * S * N * np.log(2. * np.pi)
+        ln_b = -0.5 * S * np.sum(np.log(transit_depth_errors ** 2), axis=1)
+        ln_const = ln_a + ln_b + ln_weights
+        inv_sqrt_cov_diag = np.sqrt(1.0 / transit_depth_errors ** 2)
+
+    # Create variable governing if a mixing ratio parameter combination lies in
+    # the allowed CLR simplex space (X_i > 10^-12 and sum to 1)
+    global allowed_simplex  # Needs to be global, as prior function has no return
+
+    allowed_simplex = 1  # Only changes to 0 for CLR variables outside prior
+
+    # Define the prior transformation function
+    def Prior(cube, ndim, nparams):
+        '''
+        Transforms the unit cube provided by MultiNest into the values of
+        each free parameter used by the forward model.
+
+        '''
+
+        # Assign prior distribution to each free parameter
+        for i, parameter in enumerate(param_names):
+
+            # First deal with all parameters besides mixing ratios
+            if (parameter not in X_params) or (parameter in ['C_to_O', 'log_Met']):
+
+                # Uniform priors
+                if (prior_types[parameter] == 'uniform'):
+
+                    min_value = prior_ranges[parameter][0]
+                    max_value = prior_ranges[parameter][1]
+
+                    cube[i] = ((cube[i] * (max_value - min_value)) + min_value)
+
+                # Gaussian priors
+                elif (prior_types[parameter] == 'gaussian'):
+
+                    mean = prior_ranges[parameter][0]
+                    std = prior_ranges[parameter][1]
+
+                    cube[i] = mean + (std * ndtri(cube[i]))
+
+                # Sine priors
+                elif (prior_types[parameter] == 'sine'):
+
+                    max_value = prior_ranges[parameter][1]
+
+                    if parameter in ['alpha', 'beta']:
+                        cube[i] = (180.0 / np.pi) * 2.0 * np.arcsin(
+                            cube[i] * np.sin((np.pi / 180.0) * (max_value / 2.0)))
+
+                    elif parameter in ['theta_0']:
+                        cube[i] = (180.0 / np.pi) * np.arcsin(
+                            (2.0 * cube[i] - 1) * np.sin((np.pi / 180.0) * (max_value / 2.0)))
+
+            # Draw mixing ratio parameters with uniform priors
+            elif ((parameter in X_params) and (prior_types[parameter] == 'uniform')):
+
+                # Find which chemical species this parameter represents
+                for species_q in param_species:
+                    phrase = '_' + species_q
+                    if ((phrase + '_' in parameter) or (parameter[-len(phrase):] == phrase)):
+                        species = species_q
+
+                # For 1D models, prior just given by mixing ratio prior range
+                if (Atmosphere_dimension == 1):
+
+                    min_value = prior_ranges[parameter][0]
+                    max_value = prior_ranges[parameter][1]
+
+                    cube[i] = ((cube[i] * (max_value - min_value)) + min_value)
+
+                # For 2D models, the prior range for 'Delta' parameters can change to satisfy mixing ratio priors
+                elif (Atmosphere_dimension == 2):
+
+                    # Absolute mixing ratio parameter comes first
+                    if ('Delta' not in parameter):
+
+                        min_value = prior_ranges[parameter][0]
+                        max_value = prior_ranges[parameter][1]
+
+                        last_value = ((cube[i] * (max_value - min_value)) + min_value)
+
+                        cube[i] = last_value
+
+                        # Store name of previous parameter for delta prior
+                        prev_parameter = parameter
+
+                    # Mixing ratio gradient parameter comes second
+                    elif ('Delta' in parameter):
+
+                        # Mixing ratio gradient parameters dynamically update allowed range
+                        min_prior_abs = prior_ranges[prev_parameter][0]
+                        max_prior_abs = prior_ranges[prev_parameter][1]
+
+                        min_prior_delta = prior_ranges[parameter][0]
+                        max_prior_delta = prior_ranges[parameter][1]
+
+                        # Load chosen abundance from previous parameter
+                        sampled_abundance = last_value
+
+                        # Find largest gradient such that the abundances in all
+                        # atmospheric regions satisfy the absolute abundance constraint
+                        largest_delta = 2 * min((sampled_abundance - min_prior_abs),
+                                                (max_prior_abs - sampled_abundance))  # This is |Delta|_max
+
+                        # Max / min values governed by the most restrictive of
+                        # delta prior or absolute prior, such that both are satisfied
+                        max_value_delta = min(max_prior_delta, largest_delta)
+                        min_value_delta = max(min_prior_delta, -largest_delta)
+
+                        cube[i] = ((cube[i] * (max_value_delta - min_value_delta)) + min_value_delta)
+
+                # For 3D models, the prior ranges for 'Delta' parameters can change to satisfy mixing ratio priors
+                elif (Atmosphere_dimension == 3):
+
+                    # For species with 3D gradients, sample such that highest and lowest values still satisfy mixing ratio prior
+                    if ((species in species_EM_gradient) and (species in species_DN_gradient)):
+
+                        # Absolute mixing ratio parameter comes first
+                        if ('Delta' not in parameter):
+
+                            min_value = prior_ranges[parameter][0]
+                            max_value = prior_ranges[parameter][1]
+
+                            cube[i] = ((cube[i] * (max_value - min_value)) + min_value)
+
+                            # Store name of previous parameter for next delta prior
+                            prev_parameter = parameter
+
+                        # Terminator mixing ratio gradient parameter comes second
+                        elif (parameter == ('Delta_log_' + species + '_term')):
+
+                            # Mixing ratio gradient parameters dynamically update allowed range
+                            min_prior_abs = prior_ranges[prev_parameter][0]
+                            max_prior_abs = prior_ranges[prev_parameter][1]
+
+                            min_prior_delta = prior_ranges[parameter][0]
+                            max_prior_delta = prior_ranges[parameter][1]
+
+                            # Load chosen abundance from previous parameter
+                            sampled_abundance = cube[i - 1]
+
+                            # Find largest gradient such that the abundances in all
+                            # atmospheric regions satisfy the absolute abundance constraint
+                            largest_delta = 2 * min((sampled_abundance - min_prior_abs),
+                                                    (max_prior_abs - sampled_abundance))  # This is |Delta|_max
+
+                            # Max / min values governed by the most restrictive of
+                            # delta prior or absolute prior, such that both are satisfied
+                            max_value_delta = min(max_prior_delta, largest_delta)
+                            min_value_delta = max(min_prior_delta, -largest_delta)
+
+                            cube[i] = ((cube[i] * (max_value_delta - min_value_delta)) + min_value_delta)
+
+                            # Store name of previous parameters for next delta prior
+                            prev_prev_parameter = prev_parameter
+                            prev_parameter = parameter
+
+                        # Day-night mixing ratio gradient parameter comes third
+                        elif (parameter == ('Delta_log_' + species + '_DN')):
+
+                            # Mixing ratio gradient parameters dynamically update allowed range
+                            min_prior_abs = prior_ranges[prev_prev_parameter][0]
+                            max_prior_abs = prior_ranges[prev_prev_parameter][1]
+
+                            min_prior_delta_DN = prior_ranges[parameter][0]
+                            max_prior_delta_DN = prior_ranges[parameter][1]
+
+                            # Find minimum and maximum mixing ratio in terminator plane (i.e. evening/morning)
+                            max_term_abundance = cube[i - 2] + abs(
+                                cube[i - 1] / 2.0)  # log_X_term_bar + |delta_log_X_term|/2
+                            min_term_abundance = cube[i - 2] - abs(
+                                cube[i - 1] / 2.0)  # log_X_term_bar - |delta_log_X_term|/2
+
+                            # Find largest gradient such that the abundances in all
+                            # atmospheric regions satisfy the absolute abundance constraint
+                            largest_delta = 2 * min((min_term_abundance - min_prior_abs),
+                                                    (max_prior_abs - max_term_abundance))  # This is |Delta|_max
+
+                            # Max / min values governed by the most restrictive of
+                            # delta priors or absolute prior, such that both are satisfied
+                            max_value_delta_DN = min(max_prior_delta_DN, largest_delta)
+                            min_value_delta_DN = max(min_prior_delta_DN, -largest_delta)
+
+                            cube[i] = ((cube[i] * (max_value_delta_DN - min_value_delta_DN)) + min_value_delta_DN)
+
+                    # Species with a 2D gradient (or no gradient) within a 3D model reduces to the 2D case above
+                    else:
+
+                        # Absolute mixing ratio parameter comes first
+                        if ('Delta' not in parameter):
+
+                            min_value = prior_ranges[parameter][0]
+                            max_value = prior_ranges[parameter][1]
+
+                            last_value = ((cube[i] * (max_value - min_value)) + min_value)
+
+                            cube[i] = last_value
+
+                            # Store name of previous parameter for delta prior
+                            prev_parameter = parameter
+
+                        # Mixing ratio gradient parameter comes second
+                        elif ('Delta' in parameter):
+
+                            # Mixing ratio gradient parameters dynamically update allowed range
+                            min_prior_abs = prior_ranges[prev_parameter][0]
+                            max_prior_abs = prior_ranges[prev_parameter][1]
+
+                            min_prior_delta = prior_ranges[parameter][0]
+                            max_prior_delta = prior_ranges[parameter][1]
+
+                            # Load chosen abundance from previous parameter
+                            sampled_abundance = last_value
+
+                            # Find largest gradient such that the abundances in all
+                            # atmospheric regions satisfy the absolute abundance constraint
+                            largest_delta = 2 * min((sampled_abundance - min_prior_abs),
+                                                    (max_prior_abs - sampled_abundance))  # This is |Delta|_max
+
+                            # Max / min values governed by the most restrictive of
+                            # delta prior or absolute prior, such that both are satisfied
+                            max_value_delta = min(max_prior_delta, largest_delta)
+                            min_value_delta = max(min_prior_delta, -largest_delta)
+
+                            cube[i] = ((cube[i] * (max_value_delta - min_value_delta)) + min_value_delta)
+
+        # If mixing ratio parameters have centred-log ratio prior, treat separately
+        if ('CLR' in prior_types.values()):
+
+            # Random numbers from 0 to 1 corresponding to mixing ratio parameters
+            chem_drawn = np.array(cube[N_params_cum[1]:N_params_cum[2]])
+
+            # Load Lower limit on log mixing ratios specified by user
+            limit = prior_ranges[X_params[0]][0]  # Same for all CLR variables, so choose first one
+
+            # Map random numbers to CLR variables, than transform to mixing ratios
+            log_X = CLR_Prior(chem_drawn, limit)
+
+            # Check if this random parameter draw lies in the allowed simplex space (X_i > 10^-12 and sum to 1)
+            global allowed_simplex  # Needs a global, as prior function has no return
+
+            if (log_X[1] == -50.0):
+                allowed_simplex = 0  # Mixing ratios outside allowed simplex space -> model rejected by likelihood
+            elif (log_X[1] != -50.0):
+                allowed_simplex = 1  # Likelihood will be computed for this parameter combination
+
+            # Pass the mixing ratios corresponding to the sampled CLR variables to MultiNest
+            for i in range(N_species_params):
+                i_prime = N_params_cum[1] + i
+
+                cube[i_prime] = log_X[(1 + i)]  # log_X[0] is not a free parameter
+
+    # Define the log-likelihood function
+    def LogLikelihood(cube, ndim, nparams):
+        '''
+        Evaluates the log-likelihood for a given point in parameter space.
+
+        Works by generating a PT profile, calculating the opacity in the
+        model atmosphere, computing the resulting spectrum and finally
+        convolving and integrating the spectrum to produce model data
+        points for each instrument.
+
+        The log-likelihood is then evaluated using the difference between
+        the binned spectrum and the actual data points.
+
+        '''
+
+        # ***** Check for non-allowed parameter values *****#
+
+        # Immediately reject samples falling outside of mixing ratio simplex (CLR prior only)
+        global allowed_simplex
+        if (allowed_simplex == 0):
+            loglikelihood = -1.0e100
+            return loglikelihood
+
+        # Unpack stellar parameters
+        _, _, _, _, \
+            _, stellar_params, \
+            _, _ = split_params(cube, N_params_cum)
+
+        # Reject models with spots hotter than faculae (by definition)
+        if ((stellar_contam != None) and ('two_spots' in stellar_contam)):
+
+            # Unpack stellar contamination parameters
+            _, _, _, _, \
+                T_spot, T_fac, T_phot, \
+                _, _, _, _ = unpack_stellar_params(param_names, star, stellar_params,
+                                                   stellar_contam, N_params_cum)
+
+            if ((T_spot > T_phot) or (T_fac < T_phot) or (T_spot > T_fac)):
+                loglikelihood = -1.0e100
+                return loglikelihood
+
+        # ***** For valid parameter combinations, run forward model *****#
+
+        ymodel, spectrum, _ = forward_model(cube, planet, star, model, opac, data,
+                                            wl, P, P_ref_set, R_p_ref_set, P_param_set,
+                                            He_fraction, N_slice_EM, N_slice_DN,
+                                            spectrum_type, T_phot_grid, T_het_grid,
+                                            log_g_phot_grid, log_g_het_grid,
+                                            I_phot_grid, I_het_grid, y_p, F_s_obs,
+                                            constant_gravity, chemistry_grid)
+
+        # Reject unphysical spectra (forced to be NaN by function above)
+        if (np.any(np.isnan(spectrum))):
+            # Assign penalty to likelihood => point ignored in retrieval
+            loglikelihood = -1.0e100
+
+            # Quit if given parameter combination is unphysical
+            return loglikelihood
+
+        # ***** Handle error bar inflation and offsets (if optionally enabled) *****#
+        if data_type != 'GMM':
+
+            _, _, _, _, _, _, \
+                offset_params, err_inflation_params = split_params(cube, N_params_cum)
+
+            # Load error bars specified in data files
+            err_data = data['err_data']
+
+            # Compute effective error, if unknown systematics included
+            if (error_inflation == 'Line_2015'):
+                err_eff_sq = (err_data * err_data + np.power(10.0, err_inflation_params[0]))
+                norm_log = (-0.5 * np.log(2.0 * np.pi * err_eff_sq)).sum()
+            else:
+                err_eff_sq = err_data * err_data
+                norm_log = norm_log_default
+
+            # Load transit depth data points and indices of any offset ranges
+            ydata = data['ydata']
+            offset_start = data['offset_start']
+            offset_end = data['offset_end']
+
+            # Apply relative offset between datasets
+            if (offsets_applied == 'single_dataset'):
+                ydata_adjusted = ydata.copy()
+                ydata_adjusted[offset_start:offset_end] -= offset_params[0] * 1e-6  # Convert from ppm to transit depth
+            else:
+                ydata_adjusted = ydata
+
+        # ***** Calculate ln(likelihood) ****#
+        if data_type != 'GMM':
+            loglikelihood = (-0.5 * ((ymodel - ydata_adjusted) ** 2) / err_eff_sq).sum()
+            loglikelihood += norm_log
+        else:
+            # log_likelihood computation for GMM data
+            rkr = -0.5 * np.sum(((ymodel - transit_depths)
+                                 * inv_sqrt_cov_diag) ** 2, axis=1)
+            loglikelihood = np.logaddexp.reduce(rkr + ln_const)
+
+        return loglikelihood
+
+    # Run PyMultiNest
+    pymultinest.run(LogLikelihood, Prior, n_dims, **kwargs)
 
 
 def forward_model(param_vector, planet, star, model, opac, data, wl, P, P_ref_set,

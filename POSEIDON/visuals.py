@@ -17,7 +17,7 @@ from matplotlib.colors import colorConverter
 from matplotlib.patches import Circle, Wedge
 from matplotlib.collections import PatchCollection
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter, \
-                              ScalarFormatter, NullFormatter
+    ScalarFormatter, NullFormatter
 from matplotlib import gridspec
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
@@ -25,41 +25,42 @@ from POSEIDON.corner import _quantile
 from POSEIDON.atmosphere import count_atoms
 
 plt.style.use('classic')
-plt.rc('font', family = 'serif')
+plt.rc('font', family='serif')
 matplotlib.rcParams['svg.fonttype'] = 'none'
 matplotlib.rcParams['figure.facecolor'] = 'white'
 
 import warnings
 
 # Suppress invalid warning about x limits which sometimes occur for spectra plots
-warnings.filterwarnings("ignore", message = "Attempted to set non-positive left " + 
-                                            "xlim on a log-scaled axis.\n" + 
-                                            "Invalid limit will be ignored.")
+warnings.filterwarnings("ignore", message="Attempted to set non-positive left " +
+                                          "xlim on a log-scaled axis.\n" +
+                                          "Invalid limit will be ignored.")
 
-warnings.filterwarnings("ignore", message = "This figure includes Axes that are " +
-                                            "not compatible with tight_layout, " +
-                                            "so results might be incorrect.")
+warnings.filterwarnings("ignore", message="This figure includes Axes that are " +
+                                          "not compatible with tight_layout, " +
+                                          "so results might be incorrect.")
 
 from .utility import bin_spectrum, generate_latex_param_names, round_sig_figs, \
-                     confidence_intervals, create_directories
+    confidence_intervals, create_directories
 from .instrument import bin_spectrum_to_data
 from .parameters import split_params
-              
+
 # Define some more flexible linestyles for convenience
 linestyles = {
-              'loosely dotted':        (0, (1, 10)),
-              'dotted':                (0, (1, 1)),
-              'densely dotted':        (0, (1, 1)),
-              'loosely dashed':        (0, (5, 10)),
-              'dashed':                (0, (5, 5)),
-              'densely dashed':        (0, (5, 1)),
-              'loosely dashdotted':    (0, (3, 10, 1, 10)),
-              'dashdotted':            (0, (3, 5, 1, 5)),
-              'densely dashdotted':    (0, (3, 1, 1, 1)),
-              'dashdotdotted':         (0, (3, 5, 1, 5, 1, 5)),
-              'loosely dashdotdotted': (0, (3, 10, 1, 10, 1, 10)),
-              'densely dashdotdotted': (0, (3, 1, 1, 1, 1, 1))
-              }
+    'loosely dotted': (0, (1, 10)),
+    'dotted': (0, (1, 1)),
+    'densely dotted': (0, (1, 1)),
+    'loosely dashed': (0, (5, 10)),
+    'dashed': (0, (5, 5)),
+    'densely dashed': (0, (5, 1)),
+    'loosely dashdotted': (0, (3, 10, 1, 10)),
+    'dashdotted': (0, (3, 5, 1, 5)),
+    'densely dashdotted': (0, (3, 1, 1, 1)),
+    'dashdotdotted': (0, (3, 5, 1, 5, 1, 5)),
+    'loosely dashdotdotted': (0, (3, 10, 1, 10, 1, 10)),
+    'densely dashdotdotted': (0, (3, 1, 1, 1, 1, 1))
+}
+
 
 def scale_lightness(colour_name, scale):
     ''' 
@@ -76,20 +77,20 @@ def scale_lightness(colour_name, scale):
         tuple: 
             A tuple containing the RGB values of the scaled colour.
     '''
-    
+
     # Convert colour name to RBG value
     rgb = matplotlib.colors.ColorConverter.to_rgb(colour_name)
-    
+
     # Convert RGB to HLS
     h, l, s = colorsys.rgb_to_hls(*rgb)
-    
+
     # Manipulate h, l, s values and return as RGB
-    return colorsys.hls_to_rgb(h, min(1, l * scale), s = s)
+    return colorsys.hls_to_rgb(h, min(1, l * scale), s=s)
 
 
 def plot_transit(ax, R_p, R_s, b_p, r, T, phi, phi_edge, theta, theta_edge,
-                 perspective, y_p = 0.0, plot_labels = True, show_star = False,
-                 annotate_Rp = False, back_colour = 'white'):
+                 perspective, y_p=0.0, plot_labels=True, show_star=False,
+                 annotate_Rp=False, back_colour='white'):
     '''
     Subfunction used by the 'plot_geometry' function below. This function plots
     a 2D slice through an exoplanet and its atmosphere (to scale) from various 
@@ -141,31 +142,35 @@ def plot_transit(ax, R_p, R_s, b_p, r, T, phi, phi_edge, theta, theta_edge,
     ax.set_facecolor(back_colour)
 
     ax.axis('equal')
-    
+
     # First, average sectors / zones to find radii and temperatures for terminator plane and polar slices
     N_layers = r.shape[0]
     N_sectors_init = r.shape[1]
     N_zones_init = r.shape[2]
-    
+
     # Pick out radial extents for north-south pole slice
     if (N_sectors_init > 1):
-        r_pole = 0.5*(r[:,(N_sectors_init//2)-1,:] + r[:,(N_sectors_init//2),:])  # Average sectors adjacent to north pole
-        T_pole = 0.5*(T[:,(N_sectors_init//2)-1,:] + T[:,(N_sectors_init//2),:])  # Average sectors adjacent to north pole
+        r_pole = 0.5 * (r[:, (N_sectors_init // 2) - 1, :] + r[:, (N_sectors_init // 2),
+                                                             :])  # Average sectors adjacent to north pole
+        T_pole = 0.5 * (T[:, (N_sectors_init // 2) - 1, :] + T[:, (N_sectors_init // 2),
+                                                             :])  # Average sectors adjacent to north pole
     else:
-        r_pole = r[:,0,:]
-        T_pole = T[:,0,:]
-    
+        r_pole = r[:, 0, :]
+        T_pole = T[:, 0, :]
+
     # Pick out radial extents for terminator slice
     if (N_zones_init > 1):
-        r_term = 0.5*(r[:,:,(N_zones_init//2)-1] + r[:,:,(N_zones_init//2)])  # Average zones adjacent to terminator plane
-        T_term = 0.5*(T[:,:,(N_zones_init//2)-1] + T[:,:,(N_zones_init//2)])  # Average zones adjacent to terminator plane
+        r_term = 0.5 * (r[:, :, (N_zones_init // 2) - 1] + r[:, :, (
+                                                                               N_zones_init // 2)])  # Average zones adjacent to terminator plane
+        T_term = 0.5 * (T[:, :, (N_zones_init // 2) - 1] + T[:, :, (
+                                                                               N_zones_init // 2)])  # Average zones adjacent to terminator plane
     else:
-        r_term = r[:,:,0]
-        T_term = T[:,:,0]
+        r_term = r[:, :, 0]
+        T_term = T[:, :, 0]
 
-    r_max = np.max(r)/R_p
-    r_pole_max = np.max(r_pole)/R_p
-    r_term_max = np.max(r_term)/R_p
+    r_max = np.max(r) / R_p
+    r_pole_max = np.max(r_pole) / R_p
+    r_term_max = np.max(r_term) / R_p
 
     # Slice through the terminator plane
     if (perspective == 'terminator'):
@@ -173,213 +178,213 @@ def plot_transit(ax, R_p, R_s, b_p, r, T, phi, phi_edge, theta, theta_edge,
         # In single sector case, can skip edge-finding calculations
         if (len(phi) == 1):
             phi_prime_edge_all = np.array([-90.0, 90.0, -90.0])
-            
+
         else:
-        
+
             # Convert phi into phi_prime = pi/2 - phi (angle w.r.t. y axis)
-            phi_prime_N = np.pi/2.0 - phi
-            phi_prime_S = (-1.0*phi_prime_N)[::-1]   # South pole symmetric about y axis
+            phi_prime_N = np.pi / 2.0 - phi
+            phi_prime_S = (-1.0 * phi_prime_N)[::-1]  # South pole symmetric about y axis
             phi_prime_all = np.append(phi_prime_N, phi_prime_S)
-            
+
             # Same for sector boundaries
-            phi_prime_edge_N = np.pi/2.0 - phi_edge[:-1]      # Don't need equator
-            phi_prime_edge_S = -1.0*phi_prime_edge_N[::-1]    # South pole symmetric about y axis
-            phi_prime_edge_all = np.append(phi_prime_edge_N, phi_prime_edge_S)  
-            phi_prime_edge_all *= 180/np.pi                 # Convert to degrees for wedges plot
-            phi_prime_edge_all = phi_prime_edge_all[:-1]   # Remove boundaries at equator
+            phi_prime_edge_N = np.pi / 2.0 - phi_edge[:-1]  # Don't need equator
+            phi_prime_edge_S = -1.0 * phi_prime_edge_N[::-1]  # South pole symmetric about y axis
+            phi_prime_edge_all = np.append(phi_prime_edge_N, phi_prime_edge_S)
+            phi_prime_edge_all *= 180 / np.pi  # Convert to degrees for wedges plot
+            phi_prime_edge_all = phi_prime_edge_all[:-1]  # Remove boundaries at equator
             phi_prime_edge_all[0] = phi_prime_edge_all[-1]
-            
+
         # Plot star
         if (show_star == True):
-            star = Circle((-y_p/R_p, -b_p/R_p), R_s/R_p, facecolor='gold', 
-                           edgecolor='None', alpha=0.8)
+            star = Circle((-y_p / R_p, -b_p / R_p), R_s / R_p, facecolor='gold',
+                          edgecolor='None', alpha=0.8)
             ax.add_artist(star)
-        
+
         patches = []
         T_colors = []
-        
+
         # After removing equatorial edges, compute number of azimuthal sectors
-        N_sectors = len(phi_prime_edge_all)-1
-        
-        for j_all in range(N_sectors):   # Twice to cover North and South pole sectors
-            
+        N_sectors = len(phi_prime_edge_all) - 1
+
+        for j_all in range(N_sectors):  # Twice to cover North and South pole sectors
+
             # Find equivalent sector in northern hemisphere
-            if (j_all >= N_sectors/2):
+            if (j_all >= N_sectors / 2):
                 j = N_sectors - j_all
             else:
                 j = j_all
-                
+
             # Special case for uniform atmosphere, where we only have one zone
             if (len(phi) == 1):
                 j = 0
-                
+
             # Show one layer in plot for every 11 atmospheric layers (~ each decade in pressure)
-            for i in range(0, N_layers-11, 11):
-                   
+            for i in range(0, N_layers - 11, 11):
                 # Plot full atmosphere for this sector
-                planet_atm = Wedge((0.0, 0.0), r_term[i+11,j]/R_p, phi_prime_edge_all[j_all+1],  # Wedges plots w.r.t x axis and in degrees
-                                   phi_prime_edge_all[j_all], edgecolor='None', 
-                                   width = (r_term[i+11,j] - r_term[i,j])/R_p)
-            
+                planet_atm = Wedge((0.0, 0.0), r_term[i + 11, j] / R_p, phi_prime_edge_all[j_all + 1],
+                                   # Wedges plots w.r.t x axis and in degrees
+                                   phi_prime_edge_all[j_all], edgecolor='None',
+                                   width=(r_term[i + 11, j] - r_term[i, j]) / R_p)
+
                 patches.append(planet_atm)
-                T_colors.append(np.mean(T_term[i:i+11,j])) 
-            
-            # Plot planet core (circular, below atmosphere)
-            planet_core = Circle((0.0, 0.0), r[0,0,0]/R_p, facecolor='#1E202C', edgecolor='None')
+                T_colors.append(np.mean(T_term[i:i + 11, j]))
+
+                # Plot planet core (circular, below atmosphere)
+            planet_core = Circle((0.0, 0.0), r[0, 0, 0] / R_p, facecolor='#1E202C', edgecolor='None')
             ax.add_artist(planet_core)
-        
-        ax.set_xlabel(r'y ($R_p$)', fontsize = 16)
-        ax.set_ylabel(r'z ($R_p$)', fontsize = 16)
-        
+
+        ax.set_xlabel(r'y ($R_p$)', fontsize=16)
+        ax.set_ylabel(r'z ($R_p$)', fontsize=16)
+
         # Plot atmosphere segment collection
         if (show_star == True):
-            p = PatchCollection(patches, cmap=matplotlib.cm.RdBu_r, alpha=1.0, 
-                                edgecolor=colorConverter.to_rgba('black', alpha=0.4), 
-                                lw=0.1, zorder = 10, rasterized = True)
+            p = PatchCollection(patches, cmap=matplotlib.cm.RdBu_r, alpha=1.0,
+                                edgecolor=colorConverter.to_rgba('black', alpha=0.4),
+                                lw=0.1, zorder=10, rasterized=True)
 
             # Add text label to indicate system geometry is shown
-            ax.text(0.04, 0.96, 'System Geometry', horizontalalignment='left', 
-                    verticalalignment='top', transform=ax.transAxes, color = 'black', fontsize = 16)
+            ax.text(0.04, 0.96, 'System Geometry', horizontalalignment='left',
+                    verticalalignment='top', transform=ax.transAxes, color='black', fontsize=16)
 
         else:
-            p = PatchCollection(patches, cmap=matplotlib.cm.RdYlBu_r, alpha=1.0, 
-                                edgecolor=colorConverter.to_rgba('black', alpha=0.1), 
-                                lw=0.1, zorder = 10, rasterized = True)
+            p = PatchCollection(patches, cmap=matplotlib.cm.RdYlBu_r, alpha=1.0,
+                                edgecolor=colorConverter.to_rgba('black', alpha=0.1),
+                                lw=0.1, zorder=10, rasterized=True)
 
         # Colour each segment according to atmospheric temperature
         colors = np.array(T_colors)
         p.set_array(colors)
         if (N_zones_init > 1):
-            p.set_clim([0.98*np.min(T_pole), 1.02*np.max(T_pole)])
+            p.set_clim([0.98 * np.min(T_pole), 1.02 * np.max(T_pole)])
         elif (N_sectors_init > 1):
-            p.set_clim([0.98*np.min(T_term), 1.02*np.max(T_term)])
+            p.set_clim([0.98 * np.min(T_term), 1.02 * np.max(T_term)])
         else:
-            p.set_clim([0.98*np.min(T_pole), 1.02*np.max(T_pole)])
+            p.set_clim([0.98 * np.min(T_pole), 1.02 * np.max(T_pole)])
 
         ax.add_collection(p)
-        
+
         # Add labels
         if (plot_labels == True):
-            ax.set_title("Terminator Plane", fontsize = 16, pad=10)
-            ax.text(0.04, 0.90, 'Evening', horizontalalignment='left', 
-                    verticalalignment='top', transform=ax.transAxes, fontsize = 14)
-            ax.text(0.96, 0.90, 'Morning', horizontalalignment='right', 
-                    verticalalignment='top', transform=ax.transAxes, fontsize = 14)
+            ax.set_title("Terminator Plane", fontsize=16, pad=10)
+            ax.text(0.04, 0.90, 'Evening', horizontalalignment='left',
+                    verticalalignment='top', transform=ax.transAxes, fontsize=14)
+            ax.text(0.96, 0.90, 'Morning', horizontalalignment='right',
+                    verticalalignment='top', transform=ax.transAxes, fontsize=14)
 
-        ax.set_xlim([-1.4*r_max, 1.4*r_max])
-        ax.set_ylim([-1.4*r_max, 1.4*r_max])
+        ax.set_xlim([-1.4 * r_max, 1.4 * r_max])
+        ax.set_ylim([-1.4 * r_max, 1.4 * r_max])
 
         if (annotate_Rp == True):
-            ax.annotate(s='', xy=(0.0, 0.0), xytext=(-1.0/np.sqrt(2), -1.0/np.sqrt(2)), 
+            ax.annotate(s='', xy=(0.0, 0.0), xytext=(-1.0 / np.sqrt(2), -1.0 / np.sqrt(2)),
                         arrowprops=dict(arrowstyle='<->', color='white', alpha=1.0), bbox=dict(fc='none', ec='none'))
-            ax.text(-0.50, -0.15, r'$R_{\rm{p}}$', horizontalalignment = 'left', 
-                    verticalalignment = 'top', fontsize = 14, color='white')
+            ax.text(-0.50, -0.15, r'$R_{\rm{p}}$', horizontalalignment='left',
+                    verticalalignment='top', fontsize=14, color='white')
 
 
     # Slice through the north-south pole plane
     elif (perspective == 'day-night'):
-    
+
         # In single zone case, can skip edge-finding calculations
         if (len(theta) == 1):
             theta_prime_edge_all = np.array([-90.0, 90.0, -90.0])
-            
+
         else:
-        
+
             # Convert theta into theta_prime = pi/2 - theta (angle w.r.t. x axis)
-            theta_prime_N = np.pi/2.0 - theta
-            theta_prime_S = (-1.0*theta_prime_N)[::-1]   # South pole symmetric about x axis
+            theta_prime_N = np.pi / 2.0 - theta
+            theta_prime_S = (-1.0 * theta_prime_N)[::-1]  # South pole symmetric about x axis
             theta_prime_all = np.append(theta_prime_N, theta_prime_S)
-            
+
             # Same for sector boundaries
-            theta_prime_edge_N = np.pi/2.0 - theta_edge[:-1]      # Don't need equator
-            theta_prime_edge_S = -1.0*theta_prime_edge_N[::-1]    # South pole symmetric about y axis
-            theta_prime_edge_all = np.append(theta_prime_edge_N, theta_prime_edge_S)  
-            theta_prime_edge_all *= 180/np.pi                 # Convert to degrees for wedges plot
-            
-            theta_prime_edge_all = theta_prime_edge_all[:-1]   # Remove boundaries at equator
+            theta_prime_edge_N = np.pi / 2.0 - theta_edge[:-1]  # Don't need equator
+            theta_prime_edge_S = -1.0 * theta_prime_edge_N[::-1]  # South pole symmetric about y axis
+            theta_prime_edge_all = np.append(theta_prime_edge_N, theta_prime_edge_S)
+            theta_prime_edge_all *= 180 / np.pi  # Convert to degrees for wedges plot
+
+            theta_prime_edge_all = theta_prime_edge_all[:-1]  # Remove boundaries at equator
             theta_prime_edge_all[0] = theta_prime_edge_all[-1]
-                
+
         patches = []
         T_colors = []
-        
+
         # After removing equatorial edges, compute number of azimuthal sectors
-        N_zones = len(theta_prime_edge_all)-1
-        
-        for k_all in range(N_zones):   # Twice to cover North and South pole sectors
-            
+        N_zones = len(theta_prime_edge_all) - 1
+
+        for k_all in range(N_zones):  # Twice to cover North and South pole sectors
+
             # Find equivalent sector in northern hemisphere
-            if (k_all >= N_zones/2):
+            if (k_all >= N_zones / 2):
                 k = N_zones - k_all
             else:
                 k = k_all
-                
+
             # Special case for uniform atmosphere, where we only have one zone
             if (len(theta) == 1):
                 k = 0
-                
+
             # Show one layer in plot for every 11 atmospheric layers (~ each decade in pressure)
-            for i in range(0, N_layers-11, 11):
-                
-                planet_atm = Wedge((0.0, 0.0), r_pole[i+11,k]/R_p, theta_prime_edge_all[k_all+1],  # Wedges plots w.r.t x axis and in degrees
-                                   theta_prime_edge_all[k_all], edgecolor='None', 
-                                   width = (r_pole[i+11,k] - r_pole[i,k])/R_p)
-            
+            for i in range(0, N_layers - 11, 11):
+                planet_atm = Wedge((0.0, 0.0), r_pole[i + 11, k] / R_p, theta_prime_edge_all[k_all + 1],
+                                   # Wedges plots w.r.t x axis and in degrees
+                                   theta_prime_edge_all[k_all], edgecolor='None',
+                                   width=(r_pole[i + 11, k] - r_pole[i, k]) / R_p)
+
                 patches.append(planet_atm)
-                T_colors.append(np.mean(T_pole[i:i+11,k]))
+                T_colors.append(np.mean(T_pole[i:i + 11, k]))
 
             # Plot planet core (circular, below atmosphere)
-            planet_core = Circle((0.0, 0.0), r[0,0,0]/R_p, facecolor='black', edgecolor='None')
+            planet_core = Circle((0.0, 0.0), r[0, 0, 0] / R_p, facecolor='black', edgecolor='None')
             ax.add_artist(planet_core)
-        
-        ax.set_title("Day-Night Transition", fontsize = 16, pad=10)
-        
-        ax.set_xlabel(r'x ($R_p$)', fontsize = 16)
-        ax.set_ylabel(r'z ($R_p$)', fontsize = 16)
-        
+
+        ax.set_title("Day-Night Transition", fontsize=16, pad=10)
+
+        ax.set_xlabel(r'x ($R_p$)', fontsize=16)
+        ax.set_ylabel(r'z ($R_p$)', fontsize=16)
+
         # Plot atmosphere segment collection
-        p = PatchCollection(patches, cmap=matplotlib.cm.RdYlBu_r, alpha=1.0, 
-                            edgecolor=colorConverter.to_rgba('black', alpha=0.1), 
-                            lw=0.1, zorder = 10, rasterized = True)
-        
+        p = PatchCollection(patches, cmap=matplotlib.cm.RdYlBu_r, alpha=1.0,
+                            edgecolor=colorConverter.to_rgba('black', alpha=0.1),
+                            lw=0.1, zorder=10, rasterized=True)
+
         # Colour each segment according to atmospheric temperature
         colors = np.array(T_colors)
         p.set_array(colors)
         if (N_zones_init > 1):
-            p.set_clim([0.98*np.min(T_pole), 1.02*np.max(T_pole)])
+            p.set_clim([0.98 * np.min(T_pole), 1.02 * np.max(T_pole)])
         elif (N_sectors_init > 1):
-            p.set_clim([0.98*np.min(T_term), 1.02*np.max(T_term)])
+            p.set_clim([0.98 * np.min(T_term), 1.02 * np.max(T_term)])
         else:
-            p.set_clim([0.98*np.min(T_pole), 1.02*np.max(T_pole)])
+            p.set_clim([0.98 * np.min(T_pole), 1.02 * np.max(T_pole)])
 
         ax.add_collection(p)
 
         # Add labels
         if (plot_labels == True):
-            ax.text(0.12, 0.97, 'Star', horizontalalignment='left', 
-                    verticalalignment='top', transform=ax.transAxes, fontsize = 14)
-            ax.annotate('', xy=(0.04, 0.92), xytext=(0.30, 0.92), 
-                        xycoords = 'axes fraction', textcoords = 'axes fraction',
+            ax.text(0.12, 0.97, 'Star', horizontalalignment='left',
+                    verticalalignment='top', transform=ax.transAxes, fontsize=14)
+            ax.annotate('', xy=(0.04, 0.92), xytext=(0.30, 0.92),
+                        xycoords='axes fraction', textcoords='axes fraction',
                         arrowprops=dict(arrowstyle='->', color='black', alpha=0.8))
-            ax.text(0.92, 0.97, 'Observer', horizontalalignment='right', 
-                    verticalalignment='top', transform=ax.transAxes, fontsize = 14)
-            ax.annotate('', xy=(0.96, 0.92), xytext=(0.70, 0.92), 
-                        xycoords = 'axes fraction', textcoords = 'axes fraction',
+            ax.text(0.92, 0.97, 'Observer', horizontalalignment='right',
+                    verticalalignment='top', transform=ax.transAxes, fontsize=14)
+            ax.annotate('', xy=(0.96, 0.92), xytext=(0.70, 0.92),
+                        xycoords='axes fraction', textcoords='axes fraction',
                         arrowprops=dict(arrowstyle='->', color='black', alpha=0.8))
 
-            ax.text(0.05, 0.80, 'Day', horizontalalignment='left', 
-                    verticalalignment='top', transform=ax.transAxes, fontsize = 14)
-            ax.text(0.50, 0.98, 'Terminator', horizontalalignment='center', 
-                    verticalalignment='top', transform=ax.transAxes, fontsize = 14)
-            ax.text(0.95, 0.80, 'Night', horizontalalignment='right', 
-                    verticalalignment='top', transform=ax.transAxes, fontsize = 14)
+            ax.text(0.05, 0.80, 'Day', horizontalalignment='left',
+                    verticalalignment='top', transform=ax.transAxes, fontsize=14)
+            ax.text(0.50, 0.98, 'Terminator', horizontalalignment='center',
+                    verticalalignment='top', transform=ax.transAxes, fontsize=14)
+            ax.text(0.95, 0.80, 'Night', horizontalalignment='right',
+                    verticalalignment='top', transform=ax.transAxes, fontsize=14)
 
-        ax.set_xlim([-1.4*r_max, 1.4*r_max])
-        ax.set_ylim([-1.4*r_max, 1.4*r_max])
+        ax.set_xlim([-1.4 * r_max, 1.4 * r_max])
+        ax.set_ylim([-1.4 * r_max, 1.4 * r_max])
 
     return p
-    
-   
-def plot_geometry(planet, star, model, atmosphere, plot_labels = True):
+
+
+def plot_geometry(planet, star, model, atmosphere, plot_labels=True):
     '''
     Plots two 2D slice plots through the planetary atmosphere (to scale),
     coloured according to the temperature field. The left panel corresponds
@@ -423,29 +428,29 @@ def plot_geometry(planet, star, model, atmosphere, plot_labels = True):
     output_dir = './POSEIDON_output/' + planet_name + '/plots/'
 
     # Create figure
-    fig, (ax1, ax2) = plt.subplots(2, figsize=(12,6))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[1,1]) 
-    
+    fig, (ax1, ax2) = plt.subplots(2, figsize=(12, 6))
+    gs = gridspec.GridSpec(1, 2, width_ratios=[1, 1])
+
     ax1 = plt.subplot(gs[0])
     ax2 = plt.subplot(gs[1])
-    
+
     # Plot terminator plane on LHS axis
-    p = plot_transit(ax1, R_p, R_s, b_p, r, T, phi, phi_edge, theta, 
-                     theta_edge, 'terminator', plot_labels) 
+    p = plot_transit(ax1, R_p, R_s, b_p, r, T, phi, phi_edge, theta,
+                     theta_edge, 'terminator', plot_labels)
 
     # Plot side perspective on RHS axis
-    _ = plot_transit(ax2, R_p, R_s, b_p, r, T, phi, phi_edge, theta, 
-                     theta_edge, 'day-night', plot_labels) 
-    
+    _ = plot_transit(ax2, R_p, R_s, b_p, r, T, phi, phi_edge, theta,
+                     theta_edge, 'day-night', plot_labels)
+
     # Plot temperature colourbar
-    cbaxes = fig.add_axes([1.01, 0.131, 0.015, 0.786]) 
-    cb = plt.colorbar(p, cax = cbaxes)  
+    cbaxes = fig.add_axes([1.01, 0.131, 0.015, 0.786])
+    cb = plt.colorbar(p, cax=cbaxes)
     tick_locator = ticker.MaxNLocator(nbins=8)
     cb.locator = tick_locator
     cb.update_ticks()
     cb.formatter.set_useOffset(False)
     cb.ax.set_title(r'$T \, \, \rm{(K)}$', horizontalalignment='left', pad=10)
-    
+
     plt.tight_layout()
 
     # Write figure to file
@@ -457,21 +462,20 @@ def plot_geometry(planet, star, model, atmosphere, plot_labels = True):
 
 
 def plot_geometry_spectrum_mixed(planet, star, model, atmosphere, spectra,
-                                 y_p = 0.0, plot_labels = False, 
-                                 show_star = True, annotate_Rp = True, 
-                                 back_colour = 'black', data_properties = None,
-                                 show_data = False, plot_full_res = True,
-                                 bin_spectra = True, 
-                                 R_to_bin = 100, wl_min = None, wl_max = None,
-                                 y_min = None, y_max = None,
-                                 y_unit = 'transit_depth', plt_label = None, 
-                                 colour_list = [], spectra_labels = [], 
-                                 data_colour_list = [], data_labels = [],
-                                 data_marker_list = [], 
-                                 data_marker_size_list = [], wl_axis = 'log', 
-                                 figure_shape = 'default', 
-                                 legend_location = 'upper right', legend_box = True):
-
+                                 y_p=0.0, plot_labels=False,
+                                 show_star=True, annotate_Rp=True,
+                                 back_colour='black', data_properties=None,
+                                 show_data=False, plot_full_res=True,
+                                 bin_spectra=True,
+                                 R_to_bin=100, wl_min=None, wl_max=None,
+                                 y_min=None, y_max=None,
+                                 y_unit='transit_depth', plt_label=None,
+                                 colour_list=[], spectra_labels=[],
+                                 data_colour_list=[], data_labels=[],
+                                 data_marker_list=[],
+                                 data_marker_size_list=[], wl_axis='log',
+                                 figure_shape='default',
+                                 legend_location='upper right', legend_box=True):
     # Unpack model and atmospheric properties
     planet_name = planet['planet_name']
     R_p = planet['planet_radius']
@@ -488,34 +492,34 @@ def plot_geometry_spectrum_mixed(planet, star, model, atmosphere, spectra,
     output_dir = './POSEIDON_output/' + planet_name + '/plots/'
 
     # Create figure
-    fig, (ax1, ax2) = plt.subplots(2, figsize=(15,6))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[1,1.5]) 
-    
+    fig, (ax1, ax2) = plt.subplots(2, figsize=(15, 6))
+    gs = gridspec.GridSpec(1, 2, width_ratios=[1, 1.5])
+
     ax1 = plt.subplot(gs[0])
     ax2 = plt.subplot(gs[1])
 
     # Plot transit geometry on LHS axis
-    p = plot_transit(ax1, R_p, R_s, b_p, r, T, phi, phi_edge, theta, 
+    p = plot_transit(ax1, R_p, R_s, b_p, r, T, phi, phi_edge, theta,
                      theta_edge, 'terminator', y_p, plot_labels, show_star,
-                     annotate_Rp, back_colour) 
+                     annotate_Rp, back_colour)
 
     # Plot spectrum on RHS axis
-    plot_spectra(spectra, planet, data_properties, show_data, plot_full_res, 
-                 bin_spectra, R_to_bin, wl_min, wl_max, y_min, y_max, y_unit, 
+    plot_spectra(spectra, planet, data_properties, show_data, plot_full_res,
+                 bin_spectra, R_to_bin, wl_min, wl_max, y_min, y_max, y_unit,
                  plt_label, colour_list, spectra_labels, data_colour_list,
-                 data_labels, data_marker_list, data_marker_size_list, wl_axis, 
-                 figure_shape, legend_location, legend_box, ax2, save_fig = False)
+                 data_labels, data_marker_list, data_marker_size_list, wl_axis,
+                 figure_shape, legend_location, legend_box, ax2, save_fig=False)
 
     # Save Figure to file
     file_name = (output_dir + planet_name + '_' + plt_label + '_geometry_spectra.png')
 
-    fig.savefig(file_name, bbox_inches = 'tight', dpi = 800)
+    fig.savefig(file_name, bbox_inches='tight', dpi=800)
 
 
-def plot_PT(planet, model, atmosphere, show_profiles = [],
-            PT_label = None, log_P_min = None, log_P_max = None, T_min = None,
-            T_max = None, colour = 'darkblue', legend_location = 'lower left',
-            ax = None):
+def plot_PT(planet, model, atmosphere, show_profiles=[],
+            PT_label=None, log_P_min=None, log_P_max=None, T_min=None,
+            T_max=None, colour='darkblue', legend_location='lower left',
+            ax=None):
     '''
     Plot the pressure-temperature (P-T) profiles defining the atmosphere.
     
@@ -560,7 +564,7 @@ def plot_PT(planet, model, atmosphere, show_profiles = [],
             The P-T profile plot.
 
     '''
-    
+
     # Unpack model and atmospheric properties
     planet_name = planet['planet_name']
     model_name = model['model_name']
@@ -574,27 +578,27 @@ def plot_PT(planet, model, atmosphere, show_profiles = [],
 
     # Find minimum and maximum temperatures in atmosphere
     if (T_min == None):
-        T_min = np.floor(np.min(T)/100)*100 - 200.0    # Round down to nearest 100
+        T_min = np.floor(np.min(T) / 100) * 100 - 200.0  # Round down to nearest 100
 
     if (T_max == None):
-        T_max = np.ceil(np.max(T)/100)*100 + 200.0     # Round up to nearest 100
-        
+        T_max = np.ceil(np.max(T) / 100) * 100 + 200.0  # Round up to nearest 100
+
     # Find range to plot
-    T_range = T_max - T_min    
-    
+    T_range = T_max - T_min
+
     # Calculate appropriate axis spacing
     if (T_range >= 500.0):
-        major_spacing = max(np.around((T_range/10), -2), 100.0)
+        major_spacing = max(np.around((T_range / 10), -2), 100.0)
     elif (T_range < 500.0):
-        major_spacing = max(np.around((T_range/10), -1), 10.0)
-        
-    minor_spacing = major_spacing/10
+        major_spacing = max(np.around((T_range / 10), -1), 10.0)
+
+    minor_spacing = major_spacing / 10
 
     if (log_P_min == None):
         log_P_min = np.log10(np.min(P))
     if (log_P_max == None):
         log_P_max = np.log10(np.max(P))
-    
+
     # create figure
     fig = plt.figure()
 
@@ -602,123 +606,123 @@ def plot_PT(planet, model, atmosphere, show_profiles = [],
         ax = plt.gca()
     else:
         ax = ax
-    
+
     # Assign axis spacing
     xmajorLocator_PT = MultipleLocator(major_spacing)
     xminorLocator_PT = MultipleLocator(minor_spacing)
-        
+
     ax.xaxis.set_major_locator(xmajorLocator_PT)
     ax.xaxis.set_minor_locator(xminorLocator_PT)
-    
+
     # Plot P-T profiles
-    
+
     # 1D temperature profile
     if (Atmosphere_dimension == 1):
         if (PT_label == None):
-            ax.semilogy(T[:,0,0], P, lw=1.5, color = colour, label = model_name)
+            ax.semilogy(T[:, 0, 0], P, lw=1.5, color=colour, label=model_name)
         else:
-            ax.semilogy(T[:,0,0], P, lw=1.5, color = colour, label = PT_label)
+            ax.semilogy(T[:, 0, 0], P, lw=1.5, color=colour, label=PT_label)
 
     # 2D temperature profile
     elif (Atmosphere_dimension == 2):
-        
+
         # Day-Night gradient
         if (TwoD_type == 'D-N'):
-            
+
             # If user didn't specify which profiles to plot, plot all of them
             if (show_profiles == []):
                 show_profiles = ['day', 'night', 'terminator']
-            
+
             for profile_to_plot in show_profiles:
-                
+
                 if (profile_to_plot not in ['day', 'night', 'terminator']):
-                    print ("Ignoring invalid profile '" + profile_to_plot +
-                           "', since only 'day', 'night', and 'terminator' " +
-                           "are valid for a 2D day-night model.")
-                    
+                    print("Ignoring invalid profile '" + profile_to_plot +
+                          "', since only 'day', 'night', and 'terminator' " +
+                          "are valid for a 2D day-night model.")
+
                 if (profile_to_plot == 'day'):
-                    ax.semilogy(T[:,0,0], P, lw=1.5, color = 'darkred', label='Day')
+                    ax.semilogy(T[:, 0, 0], P, lw=1.5, color='darkred', label='Day')
                 if (profile_to_plot == 'night'):
-                    ax.semilogy(T[:,0,-1], P, lw=1.5, color = 'darkblue', label='Night')
+                    ax.semilogy(T[:, 0, -1], P, lw=1.5, color='darkblue', label='Night')
                 if (profile_to_plot == 'terminator'):
-                    ax.semilogy(0.5*(T[:,0,0]+T[:,0,-1]), P, lw=1.5, ls='--', 
-                                color = 'darkorange', label='Terminator')
-                   
+                    ax.semilogy(0.5 * (T[:, 0, 0] + T[:, 0, -1]), P, lw=1.5, ls='--',
+                                color='darkorange', label='Terminator')
+
         # Evening-Morning gradient
         elif (TwoD_type == 'E-M'):
-            
+
             # If user didn't specify which profiles to plot, plot all of them
             if (show_profiles == []):
                 show_profiles = ['evening', 'morning', 'average']
-                
+
             for profile_to_plot in show_profiles:
-                
+
                 if (profile_to_plot not in ['evening', 'morning', 'average']):
-                    print ("Ignoring invalid profile '" + profile_to_plot +
-                           "', since only 'evening', 'morning', and 'average' " +
-                           "are valid for a 2D evening-morning model.")
-                    
+                    print("Ignoring invalid profile '" + profile_to_plot +
+                          "', since only 'evening', 'morning', and 'average' " +
+                          "are valid for a 2D evening-morning model.")
+
                 if (profile_to_plot == 'evening'):
-                    ax.semilogy(T[:,0,0], P, lw=1.5, color = 'darkred', label='Evening')
+                    ax.semilogy(T[:, 0, 0], P, lw=1.5, color='darkred', label='Evening')
                 if (profile_to_plot == 'morning'):
-                    ax.semilogy(T[:,-1,0], P, lw=1.5, color = 'darkblue', label='Morning')
+                    ax.semilogy(T[:, -1, 0], P, lw=1.5, color='darkblue', label='Morning')
                 if (profile_to_plot == 'average'):
-                    ax.semilogy(0.5*(T[:,0,0]+T[:,-1,0]), P, lw=1.5, ls='--', 
-                                color = 'darkorange', label='Average')
-                    
+                    ax.semilogy(0.5 * (T[:, 0, 0] + T[:, -1, 0]), P, lw=1.5, ls='--',
+                                color='darkorange', label='Average')
+
     # 3D temperature profile
     elif (Atmosphere_dimension == 3):
-        
+
         # If user didn't specify which profiles to plot, plot all of them
         if (show_profiles == []):
-            show_profiles = ['evening-day', 'evening-night', 'evening-terminator', 
+            show_profiles = ['evening-day', 'evening-night', 'evening-terminator',
                              'morning-day', 'morning-night', 'morning-terminator',
                              'terminator-average']
-        
+
         for profile_to_plot in show_profiles:
-            
-            if (profile_to_plot not in ['evening-day', 'evening-night', 
+
+            if (profile_to_plot not in ['evening-day', 'evening-night',
                                         'evening-terminator', 'morning-day',
                                         'morning-night', 'morning-terminator',
                                         'terminator-average']):
-                print ("Ignoring invalid profile' " + profile_to_plot +
-                       "', since only combinations of 'evening-' or 'morning-' " +
-                       "and 'day', 'night', or 'terminator' are valid for " +
-                       "a 3D model. A global average can be plotted via " +
-                       "'terminator-average'.")
-                
+                print("Ignoring invalid profile' " + profile_to_plot +
+                      "', since only combinations of 'evening-' or 'morning-' " +
+                      "and 'day', 'night', or 'terminator' are valid for " +
+                      "a 3D model. A global average can be plotted via " +
+                      "'terminator-average'.")
+
             if (profile_to_plot == 'evening-day'):
-                ax.semilogy(T[:,0,0], P, lw=1.5, color = 'crimson', label='Evening: Day')
+                ax.semilogy(T[:, 0, 0], P, lw=1.5, color='crimson', label='Evening: Day')
             if (profile_to_plot == 'evening-night'):
-                ax.semilogy(T[:,0,-1], P, lw=1.5, color = 'red', label='Evening: Night')
+                ax.semilogy(T[:, 0, -1], P, lw=1.5, color='red', label='Evening: Night')
             if (profile_to_plot == 'evening-terminator'):
-                ax.semilogy(0.5*(T[:,0,0]+T[:,0,-1]), P, lw=1.5, ls=':', 
-                            color = 'darkred', label='Evening: Terminator')
+                ax.semilogy(0.5 * (T[:, 0, 0] + T[:, 0, -1]), P, lw=1.5, ls=':',
+                            color='darkred', label='Evening: Terminator')
             if (profile_to_plot == 'morning-day'):
-                ax.semilogy(T[:,-1,0], P, lw=1.5, color = 'navy', label='Morning: Day')
+                ax.semilogy(T[:, -1, 0], P, lw=1.5, color='navy', label='Morning: Day')
             if (profile_to_plot == 'morning-night'):
-                ax.semilogy(T[:,-1,-1], P, lw=1.5, color = 'cyan', label='Morning: Night')
+                ax.semilogy(T[:, -1, -1], P, lw=1.5, color='cyan', label='Morning: Night')
             if (profile_to_plot == 'morning-terminator'):
-                ax.semilogy(0.5*(T[:,-1,0]+T[:,-1,-1]), P, lw=1.5, ls=':', 
-                            color = 'darkblue', label='Morning: Terminator')
+                ax.semilogy(0.5 * (T[:, -1, 0] + T[:, -1, -1]), P, lw=1.5, ls=':',
+                            color='darkblue', label='Morning: Terminator')
             if (profile_to_plot == 'terminator-average'):
-                ax.semilogy(0.25*(T[:,0,0]+T[:,0,-1]+T[:,-1,0]+T[:,-1,-1]), P, 
-                            lw=1.5, ls='--', color = 'darkorange', label='Terminator Average')
-            
+                ax.semilogy(0.25 * (T[:, 0, 0] + T[:, 0, -1] + T[:, -1, 0] + T[:, -1, -1]), P,
+                            lw=1.5, ls='--', color='darkorange', label='Terminator Average')
+
     # Common plot settings for all profiles
-    ax.invert_yaxis()            
-    ax.set_xlabel(r'Temperature (K)', fontsize = 16)
+    ax.invert_yaxis()
+    ax.set_xlabel(r'Temperature (K)', fontsize=16)
     ax.set_xlim(T_min, T_max)
-    ax.set_ylabel(r'Pressure (bar)', fontsize = 16)
-    ax.set_ylim(np.power(10.0, log_P_max), np.power(10.0, log_P_min))  
+    ax.set_ylabel(r'Pressure (bar)', fontsize=16)
+    ax.set_ylim(np.power(10.0, log_P_max), np.power(10.0, log_P_min))
     ax.tick_params(labelsize=12)
-    
+
     # Add legend
-    legend = ax.legend(loc=legend_location, shadow=True, prop={'size':10}, ncol=1, 
+    legend = ax.legend(loc=legend_location, shadow=True, prop={'size': 10}, ncol=1,
                        frameon=False, columnspacing=1.0)
-    
+
     fig.set_size_inches(9.0, 9.0)
-        
+
     # Write figure to file
     file_name = output_dir + planet_name + '_' + model_name + '_PT.pdf'
 
@@ -727,11 +731,11 @@ def plot_PT(planet, model, atmosphere, show_profiles = [],
     return fig
 
 
-def plot_chem(planet, model, atmosphere, plot_species = [], 
-              colour_list = [], show_profiles = [],
-              log_X_min = None, log_X_max = None,
-              log_P_min = None, log_P_max = None,
-              legend_title = None, legend_location = 'upper right'):  
+def plot_chem(planet, model, atmosphere, plot_species=[],
+              colour_list=[], show_profiles=[],
+              log_X_min=None, log_X_max=None,
+              log_P_min=None, log_P_max=None,
+              legend_title=None, legend_location='upper right'):
     ''' 
     Plot the mixing ratio profiles defining the atmosphere.
     
@@ -787,7 +791,7 @@ def plot_chem(planet, model, atmosphere, plot_species = [],
                 Chemical mixing ratio plot.
 
     '''
-    
+
     # Unpack model and atmospheric properties
     planet_name = planet['planet_name']
     model_name = model['model_name']
@@ -799,7 +803,7 @@ def plot_chem(planet, model, atmosphere, plot_species = [],
 
     # Identify output directory location where the plot will be saved
     output_dir = './POSEIDON_output/' + planet_name + '/plots/'
-    
+
     # If the user did not specify which species to plot, plot all of them
     if (len(plot_species) == 0):
         plot_species = chemical_species
@@ -818,231 +822,232 @@ def plot_chem(planet, model, atmosphere, plot_species = [],
     if (log_X_min == None):
         log_X_min = -1
         for q, species in enumerate(plot_species):
-            log_X_min = min(log_X_min, (np.floor(np.min(log_X[chemical_species == species,:,0,0][0])) - 1.0))
+            log_X_min = min(log_X_min, (np.floor(np.min(log_X[chemical_species == species, :, 0, 0][0])) - 1.0))
 
     if (log_X_max == None):
         log_X_max = -10
         for q, species in enumerate(plot_species):
-            log_X_max = max(log_X_max, (min((np.ceil(np.max(log_X[chemical_species == species,:,0,0][0])) + 1.0), 0.0)))
-    
+            log_X_max = max(log_X_max,
+                            (min((np.ceil(np.max(log_X[chemical_species == species, :, 0, 0][0])) + 1.0), 0.0)))
+
     # When range is small, extend axes +/- 1 dex either side
     if (log_X_min == log_X_max):
         log_X_min = log_X_min - 1.0
         log_X_max = log_X_max + 1.0
-        
+
     # Find range to plot
     log_X_range = log_X_max - log_X_min
-    
+
     # Calculate appropriate axis spacing
     if (log_X_range <= 10):
         major_spacing = 1.0
     else:
         major_spacing = 2.0
-    minor_spacing = major_spacing/10
+    minor_spacing = major_spacing / 10
 
     if (log_P_min == None):
         log_P_min = np.log10(np.min(P))
     if (log_P_max == None):
         log_P_max = np.log10(np.max(P))
-    
+
     # Define colours for mixing ratio profiles (default or user choice)
-    if (colour_list == []):   # If user did not specify a custom colour list
-        colours = ['royalblue', 'darkgreen', 'magenta', 'crimson', 'darkgrey', 
+    if (colour_list == []):  # If user did not specify a custom colour list
+        colours = ['royalblue', 'darkgreen', 'magenta', 'crimson', 'darkgrey',
                    'black', 'darkorange', 'navy']
     else:
         colours = colour_list
-    
+
     # Find LaTeX code for each chemical species to plot
     latex_species = generate_latex_param_names(plot_species)
-    
+
     # create figure
-    fig = plt.figure()  
+    fig = plt.figure()
     ax = plt.gca()
-    
+
     # Assign axis spacing
     xmajorLocator_X = MultipleLocator(major_spacing)
     xminorLocator_X = MultipleLocator(minor_spacing)
-        
+
     ax.xaxis.set_major_locator(xmajorLocator_X)
     ax.xaxis.set_minor_locator(xminorLocator_X)
-    
+
     # Plot mixing ratio profiles
-    
+
     # 1D temperature profile
     if (Atmosphere_dimension == 1):
 
         for q, species in enumerate(plot_species):
-            ax.semilogy(log_X[chemical_species == species,:,0,0][0], P, 
-                        lw=1.5, color = colours[q], label=latex_species[q])
+            ax.semilogy(log_X[chemical_species == species, :, 0, 0][0], P,
+                        lw=1.5, color=colours[q], label=latex_species[q])
 
     # 2D temperature profile
     elif (Atmosphere_dimension == 2):
-        
+
         if (len(show_profiles) == 0):
             raise Exception("For 2D or 3D models, you need to specify " +
                             "which regions to plot.")
-        
+
         for q, species in enumerate(plot_species):
 
             # Day-Night gradient
             if (TwoD_type == 'D-N'):
-                    
+
                 # If dayside and nightside the same, only plot one profile
-                if (np.all(log_X[chemical_species == species,:,0,0][0] ==
-                           log_X[chemical_species == species,:,0,-1][0])):
-                    ax.semilogy(log_X[chemical_species == species,:,0,0][0],
-                                P, lw=1.5, ls='-', color = colours[q],
+                if (np.all(log_X[chemical_species == species, :, 0, 0][0] ==
+                           log_X[chemical_species == species, :, 0, -1][0])):
+                    ax.semilogy(log_X[chemical_species == species, :, 0, 0][0],
+                                P, lw=1.5, ls='-', color=colours[q],
                                 label=latex_species[q])
 
                 # Do the same for bulk species
                 elif (species in ['H2', 'He']):
-                    ax.semilogy(log_X[chemical_species == species,:,0,0][0],
-                                P, lw=1.5, ls='-', color = colours[q],
+                    ax.semilogy(log_X[chemical_species == species, :, 0, 0][0],
+                                P, lw=1.5, ls='-', color=colours[q],
                                 label=latex_species[q])
-                
+
                 # Otherwise, plot user choices
                 else:
-                    
+
                     for profile_to_plot in show_profiles:
-                        
+
                         if (profile_to_plot not in ['day', 'night', 'terminator']):
-                            print ("Ignoring invalid profile '" + profile_to_plot +
-                                   "', since only 'day', 'night', and 'terminator' " +
-                                   "are valid for a 2D day-night model.")
+                            print("Ignoring invalid profile '" + profile_to_plot +
+                                  "', since only 'day', 'night', and 'terminator' " +
+                                  "are valid for a 2D day-night model.")
 
                         if (profile_to_plot == 'day'):
-                            ax.semilogy(log_X[chemical_species == species,:,0,0][0], 
-                                        P, lw=3.0, ls=':', color = colours[q], 
+                            ax.semilogy(log_X[chemical_species == species, :, 0, 0][0],
+                                        P, lw=3.0, ls=':', color=colours[q],
                                         label=latex_species[q] + ' (Day)')
                         if (profile_to_plot == 'night'):
-                            ax.semilogy(log_X[chemical_species == species,:,0,-1][0], 
-                                        P, lw=1.5, ls='--', color = colours[q],
+                            ax.semilogy(log_X[chemical_species == species, :, 0, -1][0],
+                                        P, lw=1.5, ls='--', color=colours[q],
                                         label=latex_species[q] + ' (Night)')
                         if (profile_to_plot == 'terminator'):
-                            ax.semilogy(0.5*(log_X[chemical_species == species,:,0,0][0] +
-                                             log_X[chemical_species == species,:,0,-1][0]), 
-                                        P, lw=1.5, ls='-', color = colours[q],
+                            ax.semilogy(0.5 * (log_X[chemical_species == species, :, 0, 0][0] +
+                                               log_X[chemical_species == species, :, 0, -1][0]),
+                                        P, lw=1.5, ls='-', color=colours[q],
                                         label=latex_species[q] + ' (Terminator)')
-                            
+
             # Evening-Morning gradient
             elif (TwoD_type == 'E-M'):
-                    
+
                 # If evening and morning the same, only plot one profile
-                if (np.all(log_X[chemical_species == species,:,0,0][0] ==
-                           log_X[chemical_species == species,:,-1,0][0])):
-                    ax.semilogy(log_X[chemical_species == species,:,0,0][0],
-                                P, lw=1.5, ls='-', color = colours[q],
+                if (np.all(log_X[chemical_species == species, :, 0, 0][0] ==
+                           log_X[chemical_species == species, :, -1, 0][0])):
+                    ax.semilogy(log_X[chemical_species == species, :, 0, 0][0],
+                                P, lw=1.5, ls='-', color=colours[q],
                                 label=latex_species[q])
 
                 # Do the same for bulk species
                 elif (species in ['H2', 'He']):
-                    ax.semilogy(log_X[chemical_species == species,:,0,0][0],
-                                P, lw=1.5, ls='-', color = colours[q],
+                    ax.semilogy(log_X[chemical_species == species, :, 0, 0][0],
+                                P, lw=1.5, ls='-', color=colours[q],
                                 label=latex_species[q])
-                
+
                 # Otherwise, plot user choices
                 else:
-                    
+
                     for profile_to_plot in show_profiles:
-                        
+
                         if (profile_to_plot not in ['evening', 'morning', 'average']):
-                            print ("Ignoring invalid profile '" + profile_to_plot +
-                                   "', since only 'evening', 'morning', and 'average' " +
-                                   "are valid for a 2D evening-morning model.")
-                            
+                            print("Ignoring invalid profile '" + profile_to_plot +
+                                  "', since only 'evening', 'morning', and 'average' " +
+                                  "are valid for a 2D evening-morning model.")
+
                         if (profile_to_plot == 'evening'):
-                            ax.semilogy(log_X[chemical_species == species,:,0,0][0], 
-                                        P, lw=3.0, ls=':', color = colours[q], 
+                            ax.semilogy(log_X[chemical_species == species, :, 0, 0][0],
+                                        P, lw=3.0, ls=':', color=colours[q],
                                         label=latex_species[q] + ' (Evening)')
                         if (profile_to_plot == 'morning'):
-                            ax.semilogy(log_X[chemical_species == species,:,-1,0][0], 
-                                        P, lw=1.5, ls='--', color = colours[q],
+                            ax.semilogy(log_X[chemical_species == species, :, -1, 0][0],
+                                        P, lw=1.5, ls='--', color=colours[q],
                                         label=latex_species[q] + ' (Morning)')
                         if (profile_to_plot == 'average'):
-                            ax.semilogy(0.5*(log_X[chemical_species == species,:,0,0][0] +
-                                             log_X[chemical_species == species,:,-1,0][0]), 
-                                        P, lw=1.5, ls='-', color = colours[q],
+                            ax.semilogy(0.5 * (log_X[chemical_species == species, :, 0, 0][0] +
+                                               log_X[chemical_species == species, :, -1, 0][0]),
+                                        P, lw=1.5, ls='-', color=colours[q],
                                         label=latex_species[q] + ' (Average)')
-  
+
     # 3D temperature profile
     elif (Atmosphere_dimension == 3):
-        
+
         if (len(show_profiles) == 0):
             raise Exception("For 2D or 3D models, you need to specify " +
                             "which regions to plot.")
-        
+
         for q, species in enumerate(plot_species):
-            
+
             # If all profiles the same, only plot one profile
-            if ((np.all(log_X[chemical_species == species,:,0,0][0] ==
-                        log_X[chemical_species == species,:,-1,0][0])) and
-                (np.all(log_X[chemical_species == species,:,0,0][0] ==
-                       log_X[chemical_species == species,:,0,-1][0]))):
-                ax.semilogy(log_X[chemical_species == species,:,0,0][0],
-                            P, lw=1.5, ls='-', color = colours[q],
+            if ((np.all(log_X[chemical_species == species, :, 0, 0][0] ==
+                        log_X[chemical_species == species, :, -1, 0][0])) and
+                    (np.all(log_X[chemical_species == species, :, 0, 0][0] ==
+                            log_X[chemical_species == species, :, 0, -1][0]))):
+                ax.semilogy(log_X[chemical_species == species, :, 0, 0][0],
+                            P, lw=1.5, ls='-', color=colours[q],
                             label=latex_species[q])
-            
+
             # Otherwise, plot user choices
             else:
 
                 for profile_to_plot in show_profiles:
-                    
-                    if (profile_to_plot not in ['evening-day', 'evening-night', 
+
+                    if (profile_to_plot not in ['evening-day', 'evening-night',
                                                 'evening-terminator', 'morning-day',
                                                 'morning-night', 'morning-terminator',
                                                 'terminator-average']):
-                        print ("Ignoring invalid profile '" + profile_to_plot +
-                               "', since only combinations of 'evening-' or 'morning-' " +
-                               "and 'day', 'night', or 'terminator' are valid for " +
-                               "a 3D model. A global average can be plotted via " +
-                               "'terminator-average'.")
-                        
+                        print("Ignoring invalid profile '" + profile_to_plot +
+                              "', since only combinations of 'evening-' or 'morning-' " +
+                              "and 'day', 'night', or 'terminator' are valid for " +
+                              "a 3D model. A global average can be plotted via " +
+                              "'terminator-average'.")
+
                     if (profile_to_plot == 'evening-day'):
-                        ax.semilogy(log_X[chemical_species == species,:,0,0][0], 
-                                    P, lw=1.5, ls=linestyles['loosely dashed'], color = colours[q], 
+                        ax.semilogy(log_X[chemical_species == species, :, 0, 0][0],
+                                    P, lw=1.5, ls=linestyles['loosely dashed'], color=colours[q],
                                     label=latex_species[q] + ' (Evening: Day)')
                     if (profile_to_plot == 'evening-night'):
-                        ax.semilogy(log_X[chemical_species == species,:,0,-1][0], 
-                                    P, lw=1.5, ls=linestyles['dashed'], color = colours[q], 
+                        ax.semilogy(log_X[chemical_species == species, :, 0, -1][0],
+                                    P, lw=1.5, ls=linestyles['dashed'], color=colours[q],
                                     label=latex_species[q] + ' (Evening: Night)')
                     if (profile_to_plot == 'evening-terminator'):
-                        ax.semilogy(0.5*(log_X[chemical_species == species,:,0,0][0] +
-                                         log_X[chemical_species == species,:,0,-1][0]), 
-                                    P, lw=1.5, ls=linestyles['densely dashed'], color = colours[q], 
+                        ax.semilogy(0.5 * (log_X[chemical_species == species, :, 0, 0][0] +
+                                           log_X[chemical_species == species, :, 0, -1][0]),
+                                    P, lw=1.5, ls=linestyles['densely dashed'], color=colours[q],
                                     label=latex_species[q] + ' (Evening: Terminator)')
                     if (profile_to_plot == 'morning-day'):
-                        ax.semilogy(log_X[chemical_species == species,:,-1,0][0], 
-                                    P, lw=1.5, ls=linestyles['loosely dashdotted'], color = colours[q], 
+                        ax.semilogy(log_X[chemical_species == species, :, -1, 0][0],
+                                    P, lw=1.5, ls=linestyles['loosely dashdotted'], color=colours[q],
                                     label=latex_species[q] + ' (Morning: Day)')
                     if (profile_to_plot == 'morning-night'):
-                        ax.semilogy(log_X[chemical_species == species,:,-1,-1][0], 
-                                    P, lw=1.5, ls=linestyles['dashdotted'], color = colours[q], 
+                        ax.semilogy(log_X[chemical_species == species, :, -1, -1][0],
+                                    P, lw=1.5, ls=linestyles['dashdotted'], color=colours[q],
                                     label=latex_species[q] + ' (Morning: Night)')
                     if (profile_to_plot == 'morning-terminator'):
-                        ax.semilogy(0.5*(log_X[chemical_species == species,:,-1,0][0] + 
-                                         log_X[chemical_species == species,:,-1,-1][0]), 
-                                    P, lw=1.5, ls=linestyles['densely dashdotted'], color = colours[q], 
+                        ax.semilogy(0.5 * (log_X[chemical_species == species, :, -1, 0][0] +
+                                           log_X[chemical_species == species, :, -1, -1][0]),
+                                    P, lw=1.5, ls=linestyles['densely dashdotted'], color=colours[q],
                                     label=latex_species[q] + ' (Morning: Terminator)')
                     if (profile_to_plot == 'terminator-average'):
-                        ax.semilogy(0.25*(log_X[chemical_species == species,:,0,0][0] + 
-                                          log_X[chemical_species == species,:,0,-1][0] + 
-                                          log_X[chemical_species == species,:,-1,0][0] + 
-                                          log_X[chemical_species == species,:,-1,-1][0]), 
-                                    P, lw=1.5, ls=linestyles['dotted'], color = colours[q], 
+                        ax.semilogy(0.25 * (log_X[chemical_species == species, :, 0, 0][0] +
+                                            log_X[chemical_species == species, :, 0, -1][0] +
+                                            log_X[chemical_species == species, :, -1, 0][0] +
+                                            log_X[chemical_species == species, :, -1, -1][0]),
+                                    P, lw=1.5, ls=linestyles['dotted'], color=colours[q],
                                     label=latex_species[q] + ' (Terminator Average)')
-  
+
     # Common plot settings for all profiles
-    ax.invert_yaxis()            
-    ax.set_xlabel(r'Mixing Ratios (log $X_{\rm{i}}$)', fontsize = 20)
-    ax.set_xlim(log_X_min, log_X_max)  
-    ax.set_ylabel(r'Pressure (bar)', fontsize = 20)
-    ax.set_ylim(np.power(10.0, log_P_max), np.power(10.0, log_P_min))  
+    ax.invert_yaxis()
+    ax.set_xlabel(r'Mixing Ratios (log $X_{\rm{i}}$)', fontsize=20)
+    ax.set_xlim(log_X_min, log_X_max)
+    ax.set_ylabel(r'Pressure (bar)', fontsize=20)
+    ax.set_ylim(np.power(10.0, log_P_max), np.power(10.0, log_P_min))
     ax.tick_params(labelsize=12)
 
     # Add legend
-    legend = ax.legend(loc=legend_location, shadow=True, prop={'size':14}, 
-                       frameon=True, columnspacing=1.0, title = legend_title,
-                       title_fontsize = 16)
+    legend = ax.legend(loc=legend_location, shadow=True, prop={'size': 14},
+                       frameon=True, columnspacing=1.0, title=legend_title,
+                       title_fontsize=16)
     frame = legend.get_frame()
     frame.set_facecolor('0.90')
 
@@ -1054,7 +1059,7 @@ def plot_chem(planet, model, atmosphere, plot_species = [],
         legend.set_bbox_to_anchor([0.02, 0.02], transform=None)
     elif (legend_location == 'lower right'):
         legend.set_bbox_to_anchor([0.98, 0.98], transform=None)
-    
+
     fig.set_size_inches(9.0, 9.0)
 
     # Write figure to file
@@ -1065,7 +1070,7 @@ def plot_chem(planet, model, atmosphere, plot_species = [],
     return fig
 
 
-def set_spectrum_wl_ticks(wl_min, wl_max, wl_axis = 'log'):
+def set_spectrum_wl_ticks(wl_min, wl_max, wl_axis='log'):
     '''
     Calculates default x axis tick spacing for spectra plots in POSEIDON.
     
@@ -1091,69 +1096,81 @@ def set_spectrum_wl_ticks(wl_min, wl_max, wl_axis = 'log'):
     # For plots over a wide wavelength range
     if (wl_range > 0.2):
         if (wl_max <= 1.0):
-            wl_ticks_1 = np.arange(round_sig_figs(wl_min, 1), round_sig_figs(wl_max, 2)+0.01, 0.1)
+            wl_ticks_1 = np.arange(round_sig_figs(wl_min, 1), round_sig_figs(wl_max, 2) + 0.01, 0.1)
             wl_ticks_2 = np.array([])
             wl_ticks_3 = np.array([])
             wl_ticks_4 = np.array([])
         elif (wl_max <= 2.0):
             if (wl_min < 1.0):
                 wl_ticks_1 = np.arange(round_sig_figs(wl_min, 1), 1.0, 0.2)
-                wl_ticks_2 = np.arange(1.0, round_sig_figs(wl_max, 2)+0.01, 0.2)
+                wl_ticks_2 = np.arange(1.0, round_sig_figs(wl_max, 2) + 0.01, 0.2)
             else:
                 wl_ticks_1 = np.array([])
-                wl_ticks_2 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min*5)/5.0, round_sig_figs(wl_max, 2)+0.01, 0.2)))
+                wl_ticks_2 = np.concatenate(([round_sig_figs(wl_min, 2)],
+                                             np.arange(np.ceil(wl_min * 5) / 5.0, round_sig_figs(wl_max, 2) + 0.01,
+                                                       0.2)))
             wl_ticks_3 = np.array([])
             wl_ticks_4 = np.array([])
         elif (wl_max <= 3.0):
             if (wl_min < 1.0):
                 wl_ticks_1 = np.arange(round_sig_figs(wl_min, 1), 1.0, 0.2)
-                wl_ticks_2 = np.arange(1.0, round_sig_figs(wl_max, 2)+0.01, 0.5)
+                wl_ticks_2 = np.arange(1.0, round_sig_figs(wl_max, 2) + 0.01, 0.5)
             else:
                 wl_ticks_1 = np.array([])
-                wl_ticks_2 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min*5)/5.0, round_sig_figs(wl_max, 2)+0.01, 0.2)))
+                wl_ticks_2 = np.concatenate(([round_sig_figs(wl_min, 2)],
+                                             np.arange(np.ceil(wl_min * 5) / 5.0, round_sig_figs(wl_max, 2) + 0.01,
+                                                       0.2)))
             wl_ticks_3 = np.array([])
             wl_ticks_4 = np.array([])
         elif (wl_max <= 5.0):
             if (wl_min < 1.0):
                 wl_ticks_1 = np.arange(round_sig_figs(wl_min, 1), 1.0, 0.2)
                 wl_ticks_2 = np.arange(1.0, 3.0, 0.5)
-                wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2)+0.01, 1.0)
+                wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2) + 0.01, 1.0)
             elif (wl_min < 3.0):
                 wl_ticks_1 = np.array([])
-                wl_ticks_2 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min*5)/5.0, 3.0, 0.2)))
+                wl_ticks_2 = np.concatenate(
+                    ([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min * 5) / 5.0, 3.0, 0.2)))
                 if (wl_axis == 'log'):
-                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2)+0.01, 0.5)
+                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2) + 0.01, 0.5)
                 elif (wl_axis == 'linear'):
-                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2)+0.01, 0.2)
+                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2) + 0.01, 0.2)
             else:
                 wl_ticks_1 = np.array([])
                 wl_ticks_2 = np.array([])
-                wl_ticks_3 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min*5)/5.0, round_sig_figs(wl_max, 2)+0.01, 0.2)))
+                wl_ticks_3 = np.concatenate(([round_sig_figs(wl_min, 2)],
+                                             np.arange(np.ceil(wl_min * 5) / 5.0, round_sig_figs(wl_max, 2) + 0.01,
+                                                       0.2)))
             wl_ticks_4 = np.array([])
         elif (wl_max <= 10.0):
             if (wl_min < 1.0):
                 if (wl_axis == 'log'):
                     wl_ticks_1 = np.arange(round_sig_figs(wl_min, 1), 1.0, 0.2)
                     wl_ticks_2 = np.arange(1.0, 3.0, 0.5)
-                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2)+0.01, 1.0)
+                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2) + 0.01, 1.0)
                 elif (wl_axis == 'linear'):
                     wl_ticks_1 = np.arange(round_sig_figs(wl_min, 1), 1.0, 1.0)
-                    wl_ticks_2 = np.arange(1.0, 3.0, 1.0)            
-                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2)+0.01, 1.0)
+                    wl_ticks_2 = np.arange(1.0, 3.0, 1.0)
+                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2) + 0.01, 1.0)
             elif (wl_min < 3.0):
                 wl_ticks_1 = np.array([])
-                wl_ticks_2 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min*2)/2.0, 3.0, 0.5)))
+                wl_ticks_2 = np.concatenate(
+                    ([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min * 2) / 2.0, 3.0, 0.5)))
                 if (wl_axis == 'log'):
-                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2)+0.01, 1.0)
+                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2) + 0.01, 1.0)
                 elif (wl_axis == 'linear'):
-                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2)+0.01, 0.5)
+                    wl_ticks_3 = np.arange(3.0, round_sig_figs(wl_max, 2) + 0.01, 0.5)
             else:
                 wl_ticks_1 = np.array([])
                 wl_ticks_2 = np.array([])
                 if (wl_axis == 'log'):
-                    wl_ticks_3 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min*2)/2.0, round_sig_figs(wl_max, 2)+0.01, 0.5)))
+                    wl_ticks_3 = np.concatenate(([round_sig_figs(wl_min, 2)],
+                                                 np.arange(np.ceil(wl_min * 2) / 2.0, round_sig_figs(wl_max, 2) + 0.01,
+                                                           0.5)))
                 elif (wl_axis == 'linear'):
-                    wl_ticks_3 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min*2)/2.0, round_sig_figs(wl_max, 2)+0.01, 0.5)))
+                    wl_ticks_3 = np.concatenate(([round_sig_figs(wl_min, 2)],
+                                                 np.arange(np.ceil(wl_min * 2) / 2.0, round_sig_figs(wl_max, 2) + 0.01,
+                                                           0.5)))
             wl_ticks_4 = np.array([])
         else:
             if (wl_min < 1.0):
@@ -1161,39 +1178,43 @@ def set_spectrum_wl_ticks(wl_min, wl_max, wl_axis = 'log'):
                     wl_ticks_1 = np.arange(round_sig_figs(wl_min, 1), 1.0, 0.2)
                     wl_ticks_2 = np.arange(1.0, 3.0, 0.5)
                     wl_ticks_3 = np.arange(3.0, 10.0, 1.0)
-                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 2)+0.01, 2.0)
+                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 2) + 0.01, 2.0)
                 elif (wl_axis == 'linear'):
                     wl_ticks_1 = np.arange(round_sig_figs(wl_min, 1), 1.0, 1.0)
-                    wl_ticks_2 = np.arange(1.0, 3.0, 1.0)            
+                    wl_ticks_2 = np.arange(1.0, 3.0, 1.0)
                     wl_ticks_3 = np.arange(3.0, 10.0, 1.0)
-                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 3)+0.01, 1.0)
+                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 3) + 0.01, 1.0)
             elif (wl_min < 3.0):
                 wl_ticks_1 = np.array([])
-                if (wl_axis == 'log'): 
-                    wl_ticks_2 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min*2)/2.0, 3.0, 0.5)))
+                if (wl_axis == 'log'):
+                    wl_ticks_2 = np.concatenate(
+                        ([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min * 2) / 2.0, 3.0, 0.5)))
                     wl_ticks_3 = np.arange(3.0, 10.0, 1.0)
-                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 2)+0.01, 2.0)
+                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 2) + 0.01, 2.0)
                 elif (wl_axis == 'linear'):
                     wl_ticks_2 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min), 3.0, 1.0)))
                     wl_ticks_3 = np.arange(3.0, 10.0, 1.0)
-                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 3)+0.01, 1.0)
+                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 3) + 0.01, 1.0)
             elif (wl_min < 10.0):
                 wl_ticks_1 = np.array([])
                 wl_ticks_2 = np.array([])
                 if (wl_axis == 'log'):
                     wl_ticks_3 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min), 10.0, 1.0)))
-                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 3)+0.01, 2.0)
+                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 3) + 0.01, 2.0)
                 elif (wl_axis == 'linear'):
                     wl_ticks_3 = np.concatenate(([round_sig_figs(wl_min, 2)], np.arange(np.ceil(wl_min), 10.0, 1.0)))
-                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 3)+0.01, 1.0)
+                    wl_ticks_4 = np.arange(10.0, round_sig_figs(wl_max, 3) + 0.01, 1.0)
             else:
                 wl_ticks_1 = np.array([])
                 wl_ticks_2 = np.array([])
                 wl_ticks_3 = np.array([])
                 if (wl_axis == 'log'):
-                    wl_ticks_4 = np.concatenate(([round_sig_figs(wl_min, 3)], np.arange(np.ceil(wl_min), round_sig_figs(wl_max, 3)+0.01, 1.0)))
+                    wl_ticks_4 = np.concatenate(([round_sig_figs(wl_min, 3)],
+                                                 np.arange(np.ceil(wl_min), round_sig_figs(wl_max, 3) + 0.01, 1.0)))
                 elif (wl_axis == 'linear'):
-                    wl_ticks_4 = np.concatenate(([round_sig_figs(wl_min, 3)], np.arange(np.ceil(wl_min*2)/2.0, round_sig_figs(wl_max, 3)+0.01, 0.5)))
+                    wl_ticks_4 = np.concatenate(([round_sig_figs(wl_min, 3)],
+                                                 np.arange(np.ceil(wl_min * 2) / 2.0, round_sig_figs(wl_max, 3) + 0.01,
+                                                           0.5)))
 
         wl_ticks = np.concatenate((wl_ticks_1, wl_ticks_2, wl_ticks_3, wl_ticks_4))
 
@@ -1201,32 +1222,32 @@ def set_spectrum_wl_ticks(wl_min, wl_max, wl_axis = 'log'):
     else:
 
         # Aim for 10 x-axis labels
-        wl_spacing = round_sig_figs((wl_max - wl_min), 1)/10
-        
-        major_exponent = round_sig_figs(np.floor(np.log10(np.abs(wl_spacing))), 1)
-        
-        # If last digit of x labels would be 3,6,7,8,or 9, bump up to 10
-        if (wl_spacing > 5*np.power(10, major_exponent)):
-            wl_spacing = 1*np.power(10, major_exponent+1)
-        elif (wl_spacing == 3*np.power(10, major_exponent)):
-            wl_spacing = 2*np.power(10, major_exponent)
+        wl_spacing = round_sig_figs((wl_max - wl_min), 1) / 10
 
-        wl_ticks = np.arange(round_sig_figs(wl_min, 3), round_sig_figs(wl_max, 3)+0.0001, wl_spacing)
+        major_exponent = round_sig_figs(np.floor(np.log10(np.abs(wl_spacing))), 1)
+
+        # If last digit of x labels would be 3,6,7,8,or 9, bump up to 10
+        if (wl_spacing > 5 * np.power(10, major_exponent)):
+            wl_spacing = 1 * np.power(10, major_exponent + 1)
+        elif (wl_spacing == 3 * np.power(10, major_exponent)):
+            wl_spacing = 2 * np.power(10, major_exponent)
+
+        wl_ticks = np.arange(round_sig_figs(wl_min, 3), round_sig_figs(wl_max, 3) + 0.0001, wl_spacing)
 
     return wl_ticks
 
-    
-def plot_spectra(spectra, planet, data_properties = None, show_data = False,
-                 plot_full_res = True, bin_spectra = True, R_to_bin = 100, 
-                 wl_min = None, wl_max = None, y_min = None, y_max = None,
-                 y_unit = 'transit_depth', plt_label = None, 
-                 colour_list = [], spectra_labels = [], data_colour_list = [],
-                 data_labels = [], data_marker_list = [], 
-                 data_marker_size_list = [], text_annotations = [],
-                 annotation_pos = [], wl_axis = 'log', 
-                 figure_shape = 'default', legend_location = 'upper right',
-                 legend_box = True, ax = None, save_fig = True,
-                 show_errors = True):
+
+def plot_spectra(spectra, planet, data_properties=None, show_data=False,
+                 plot_full_res=True, bin_spectra=True, R_to_bin=100,
+                 wl_min=None, wl_max=None, y_min=None, y_max=None,
+                 y_unit='transit_depth', plt_label=None,
+                 colour_list=[], spectra_labels=[], data_colour_list=[],
+                 data_labels=[], data_marker_list=[],
+                 data_marker_size_list=[], text_annotations=[],
+                 annotation_pos=[], wl_axis='log',
+                 figure_shape='default', legend_location='upper right',
+                 legend_box=True, ax=None, save_fig=True,
+                 show_errors=True):
     ''' 
     Plot a collection of individual model spectra. This function can plot
     transmission or emission spectra, according to the user's choice of 'y_unit'.
@@ -1313,7 +1334,7 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
     else:
         raise Exception("Unexpected y unit. Did you mean 'transit_depth' " +
                         "or 'eclipse_depth'?")
-    
+
     # Find number of spectra to plot
     N_spectra = len(spectra)
 
@@ -1326,7 +1347,7 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
     # Quick validity checks for plotting
     if (N_spectra == 0):
         raise Exception("Must provide at least one spectrum to plot!")
-    #if (N_spectra > 9):
+    # if (N_spectra > 9):
     #    raise Exception("Max number of concurrent spectra to plot is 9.")
     if ((colour_list != []) and (N_spectra != len(colour_list))):
         raise Exception("Number of colours does not match number of spectra.")
@@ -1334,10 +1355,10 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
         raise Exception("Number of model labels does not match number of spectra.")
     if ((text_annotations != []) and (len(text_annotations) != len(annotation_pos))):
         raise Exception("Number of annotation labels does not match provided positions.")
-        
+
     # Define colours for plotted spectra (default or user choice)
-    if (colour_list == []):   # If user did not specify a custom colour list
-        colours = ['green', 'red', 'black', 'darkgrey', 'navy', 
+    if (colour_list == []):  # If user did not specify a custom colour list
+        colours = ['green', 'red', 'black', 'darkgrey', 'navy',
                    'brown', 'goldenrod', 'magenta']
     else:
         colours = colour_list
@@ -1354,7 +1375,7 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
 
         # Find number of datasets to plot
         N_datasets = len(datasets)
-            
+
         # Quick validity checks for plotting
         if (N_datasets == 0):
             raise Exception("Must provide at least one dataset to plot!")
@@ -1368,142 +1389,136 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
             raise Exception("Number of dataset markers does not match number of datasets.")
         if ((data_marker_size_list != []) and (N_datasets != len(data_marker_size_list))):
             raise Exception("Number of dataset marker sizes does not match number of datasets.")
-            
+
         # Define colours for plotted spectra (default or user choice)
-        if (data_colour_list == []):   # If user did not specify a custom colour list
+        if (data_colour_list == []):  # If user did not specify a custom colour list
             data_colours = ['orange', 'lime', 'cyan', 'magenta', 'brown', 'black', 'black']
         else:
             data_colours = data_colour_list
 
         # Define data marker symbols (default or user choice)
-        if (data_marker_list == []):   # If user did not specify a custom colour list
+        if (data_marker_list == []):  # If user did not specify a custom colour list
             data_markers = ['o', 's', 'D', '*', 'X', 'p', 'p']
         else:
             data_markers = data_marker_list
 
         # Define data marker sizes (default or user choice)
-        if (data_marker_size_list == []):   # If user did not specify a custom colour list
+        if (data_marker_size_list == []):  # If user did not specify a custom colour list
             data_markers_size = [3, 3, 3, 3, 3, 3, 3]
         else:
             data_markers_size = data_marker_size_list
-        
+
     # If the user did not specify a wavelength range, find min and max from input models
     if (wl_min == None):
-        
-        wl_min = 1e10   # Dummy value
-        
+
+        wl_min = 1e10  # Dummy value
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_spectra):
-            
             wl_min_i = np.min(spectra[i][1])
             wl_min = min(wl_min, wl_min_i)
-            
+
     # If the user did not specify a wavelength range, find min and max from input models
     if (wl_max == None):
-        
+
         wl_max = 1e-10  # Dummy value
-        
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_spectra):
-            
             wl_max_i = np.max(spectra[i][1])
             wl_max = max(wl_max, wl_max_i)
 
     wl_range = wl_max - wl_min
-   
+
     # If the user did not specify a y range, find min and max from input models
     if (y_min == None):
-        
-        y_min_plt = 1e10   # Dummy value
-        
+
+        y_min_plt = 1e10  # Dummy value
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_spectra):
-            
             y_min_i = np.min(spectra[i][0])
             y_min_plt = min(y_min_plt, y_min_i)
-            
+
         # Check if the lowest data point falls below the current y-limit
         if (show_data == True):
             if (y_min_plt > min(ydata - err_data)):
-                
                 y_min_plt = min(ydata - err_data)
-            
-        y_min_plt = 0.995*y_min_plt  # Extend slightly below
-        
+
+        y_min_plt = 0.995 * y_min_plt  # Extend slightly below
+
     else:
         y_min_plt = y_min
 
     if (y_max == None):
-        
+
         y_max_plt = 1e-10  # Dummy value
-        
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_spectra):
-            
             y_max_i = np.max(spectra[i][0])
             y_max_plt = max(y_max_plt, y_max_i)
-            
+
         # Check if the highest data point falls above the current y-limit
         if (show_data == True):
             if (y_max_plt < max(ydata + err_data)):
-                
                 y_max_plt = max(ydata + err_data)
-            
-        y_max_plt = 1.005*y_max_plt  # Extend slightly above
-        
+
+        y_max_plt = 1.005 * y_max_plt  # Extend slightly above
+
     else:
         y_max_plt = y_max
-        
-    #***** Format x and y ticks *****#
+
+    # ***** Format x and y ticks *****#
 
     # Create x formatting objects
-    if (wl_range >= 0.2):                      
-        if (wl_max < 1.0):                         # Plotting the optical range
+    if (wl_range >= 0.2):
+        if (wl_max < 1.0):  # Plotting the optical range
             xmajorLocator = MultipleLocator(0.1)
             xminorLocator = MultipleLocator(0.02)
-        else:                                      # Plot extends into the infrared
+        else:  # Plot extends into the infrared
             xmajorLocator = MultipleLocator(1.0)
             xminorLocator = MultipleLocator(0.1)
-    elif ((wl_range < 0.2) and (wl_range >= 0.02)):   # High-resolution zoomed plots
+    elif ((wl_range < 0.2) and (wl_range >= 0.02)):  # High-resolution zoomed plots
         xmajorLocator = MultipleLocator(0.01)
         xminorLocator = MultipleLocator(0.002)
-    else:                                             # Super high-resolution
+    else:  # Super high-resolution
         xmajorLocator = MultipleLocator(0.001)
         xminorLocator = MultipleLocator(0.0002)
 
     xmajorFormatter = FormatStrFormatter('%g')
     xminorFormatter = NullFormatter()
-    
+
     # Aim for 10 major y-axis labels
-    ymajor_spacing = round_sig_figs((y_max_plt - y_min_plt), 1)/10
-    yminor_spacing = ymajor_spacing/10
-    
+    ymajor_spacing = round_sig_figs((y_max_plt - y_min_plt), 1) / 10
+    yminor_spacing = ymajor_spacing / 10
+
     major_exponent = round_sig_figs(np.floor(np.log10(np.abs(ymajor_spacing))), 1)
     minor_exponent = round_sig_figs(np.floor(np.log10(np.abs(yminor_spacing))), 1)
-    
+
     # If last digit of y labels would be a multiple of 6,7,8,or 9, bump up to 10
-    if (ymajor_spacing > 5*np.power(10, major_exponent)):
-        ymajor_spacing = 1*np.power(10, major_exponent+1)
-    elif (ymajor_spacing == 3*np.power(10, major_exponent)):
-        ymajor_spacing = 2*np.power(10, major_exponent)
-    if (yminor_spacing > 5*np.power(10, minor_exponent)):
-        yminor_spacing = 1*np.power(10, minor_exponent+1)
-    elif (yminor_spacing == 3*np.power(10, minor_exponent)):
-        yminor_spacing = 2*np.power(10, minor_exponent)
-    
+    if (ymajor_spacing > 5 * np.power(10, major_exponent)):
+        ymajor_spacing = 1 * np.power(10, major_exponent + 1)
+    elif (ymajor_spacing == 3 * np.power(10, major_exponent)):
+        ymajor_spacing = 2 * np.power(10, major_exponent)
+    if (yminor_spacing > 5 * np.power(10, minor_exponent)):
+        yminor_spacing = 1 * np.power(10, minor_exponent + 1)
+    elif (yminor_spacing == 3 * np.power(10, minor_exponent)):
+        yminor_spacing = 2 * np.power(10, minor_exponent)
+
     # Refine y range to be a multiple of the tick spacing (only if range not specified by user)
     if (y_min == None):
-        y_min_plt = np.floor(y_min_plt/ymajor_spacing)*ymajor_spacing
+        y_min_plt = np.floor(y_min_plt / ymajor_spacing) * ymajor_spacing
     if (y_max == None):
-        y_max_plt = np.ceil(y_max_plt/ymajor_spacing)*ymajor_spacing
- 
+        y_max_plt = np.ceil(y_max_plt / ymajor_spacing) * ymajor_spacing
+
     # Set y range
     y_range = [y_min_plt, y_max_plt]
 
     # Create y formatting objects
-    ymajorLocator   = MultipleLocator(ymajor_spacing)
+    ymajorLocator = MultipleLocator(ymajor_spacing)
     ymajorFormatter = ScalarFormatter(useMathText=True, useOffset=False)
-    ymajorFormatter.set_powerlimits((0,0))
+    ymajorFormatter.set_powerlimits((0, 0))
     yminorLocator = MultipleLocator(yminor_spacing)
 
     # Generate figure and axes
@@ -1511,19 +1526,19 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
 
     # Set figure size
     if (figure_shape == 'default'):
-        fig.set_size_inches(8.0, 6.0)    # Default Matplotlib figure size
+        fig.set_size_inches(8.0, 6.0)  # Default Matplotlib figure size
     elif (figure_shape == 'wide'):
-        fig.set_size_inches(10.667, 6.0)    # 16:9 widescreen format (for two column figures)
+        fig.set_size_inches(10.667, 6.0)  # 16:9 widescreen format (for two column figures)
     elif (legend_location == 'outside right'):
-        fig.set_size_inches(12, 8.0) 
+        fig.set_size_inches(12, 8.0)
     else:
         raise Exception("Unsupported Figure shape - please use 'default' or 'wide'")
-    
+
     if (ax == None):
         ax1 = plt.gca()
     else:
         ax1 = ax
-    
+
     # Set x axis to be linear or logarithmic
     ax1.set_xscale(wl_axis)
 
@@ -1535,31 +1550,31 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
     ax1.yaxis.set_major_locator(ymajorLocator)
     ax1.yaxis.set_major_formatter(ymajorFormatter)
     ax1.yaxis.set_minor_locator(yminorLocator)
-    
+
     for i in range(N_spectra):
-        
+
         # Extract spectrum and wavelength grid
         (spec, wl) = spectra[i]
-        
+
         # If user did not specify a model label, just call them "Model 1, 2" etc.
         if (spectra_labels == []):
             if (N_spectra == 1):
                 label_i = r'Spectrum'
             else:
-                label_i = r'Spectrum ' + str(i+1)
+                label_i = r'Spectrum ' + str(i + 1)
         else:
             label_i = spectra_labels[i]
-        
+
         # Plot spectrum at full model resolution
         if (plot_full_res == True):
-            ax1.plot(wl, spec, lw = 0.5, alpha = 0.4, zorder = i,
-                     color = colours[i], label = label_i)
+            ax1.plot(wl, spec, lw=0.5, alpha=0.4, zorder=i,
+                     color=colours[i], label=label_i)
 
         # Plot smoothed (binned) version of the model
         if (bin_spectra == True):
-            
+
             N_plotted_binned = 0  # Counter for number of plotted binned spectra
-            
+
             # Calculate binned wavelength and spectrum grid
             wl_binned, spec_binned, _ = bin_spectrum(wl, spec, R_to_bin)
 
@@ -1572,11 +1587,11 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
                 lw_binned = 2.0
 
             # Plot binned spectrum
-            ax1.plot(wl_binned, spec_binned, lw = lw_binned, alpha = 0.8, 
-                     color = colour_binned, 
-                     zorder = N_spectra+N_plotted_binned, 
-                     label = label_i)
-            
+            ax1.plot(wl_binned, spec_binned, lw=lw_binned, alpha=0.8,
+                     color=colour_binned,
+                     zorder=N_spectra + N_plotted_binned,
+                     label=label_i)
+
             N_plotted_binned += 1
 
     # Overplot datapoints
@@ -1585,16 +1600,16 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
         if (show_errors == False):
 
             for i in range(N_datasets):
-                
+
                 # If user did not specify dataset labels, use the instrument names
                 if (data_labels == []):
                     label_i = instruments[i]
                 else:
                     label_i = data_labels[i]
-                
+
                 # Find start and end indices of dataset_i in dataset property arrays
                 idx_start = data_properties['len_data_idx'][i]
-                idx_end = data_properties['len_data_idx'][i+1]
+                idx_end = data_properties['len_data_idx'][i + 1]
 
                 # Extract the ith dataset
                 wl_data_i = wl_data[idx_start:idx_end]
@@ -1603,29 +1618,29 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
                 bin_size_i = bin_size[idx_start:idx_end]
 
                 # Plot dataset
-                markers, caps, bars = ax1.errorbar(wl_data_i, ydata_i, yerr = err_data_i, 
-                                                xerr = bin_size_i, marker = data_markers[i], 
-                                                markersize = data_markers_size[i], 
-                                                capsize = 2, ls = 'none', elinewidth = 0, 
-                                                color = data_colours[i], alpha = 0.8,
-                                                ecolor = 'black', label = label_i,
-                                                zorder = 100)
+                markers, caps, bars = ax1.errorbar(wl_data_i, ydata_i, yerr=err_data_i,
+                                                   xerr=bin_size_i, marker=data_markers[i],
+                                                   markersize=data_markers_size[i],
+                                                   capsize=2, ls='none', elinewidth=0,
+                                                   color=data_colours[i], alpha=0.8,
+                                                   ecolor='black', label=label_i,
+                                                   zorder=100)
 
                 [markers.set_alpha(1.0)]
 
         else:
 
             for i in range(N_datasets):
-                
+
                 # If user did not specify dataset labels, use the instrument names
                 if (data_labels == []):
                     label_i = instruments[i]
                 else:
                     label_i = data_labels[i]
-                
+
                 # Find start and end indices of dataset_i in dataset property arrays
                 idx_start = data_properties['len_data_idx'][i]
-                idx_end = data_properties['len_data_idx'][i+1]
+                idx_end = data_properties['len_data_idx'][i + 1]
 
                 # Extract the ith dataset
                 wl_data_i = wl_data[idx_start:idx_end]
@@ -1634,13 +1649,13 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
                 bin_size_i = bin_size[idx_start:idx_end]
 
                 # Plot dataset
-                markers, caps, bars = ax1.errorbar(wl_data_i, ydata_i, yerr = err_data_i, 
-                                                xerr = bin_size_i, marker = data_markers[i], 
-                                                markersize = data_markers_size[i], 
-                                                capsize = 2, ls = 'none', elinewidth = 0.8, 
-                                                color = data_colours[i], alpha = 0.8,
-                                                ecolor = 'black', label = label_i,
-                                                zorder = 100)
+                markers, caps, bars = ax1.errorbar(wl_data_i, ydata_i, yerr=err_data_i,
+                                                   xerr=bin_size_i, marker=data_markers[i],
+                                                   markersize=data_markers_size[i],
+                                                   capsize=2, ls='none', elinewidth=0.8,
+                                                   color=data_colours[i], alpha=0.8,
+                                                   ecolor='black', label=label_i,
+                                                   zorder=100)
 
                 [markers.set_alpha(1.0)]
 
@@ -1648,44 +1663,43 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
     if (text_annotations != []):
 
         for i in range(len(text_annotations)):
-
             # Plot each annotation at the location provided by the user
-            ax1.text(annotation_pos[i][0], annotation_pos[i][1], 
-                     text_annotations[i], fontsize=14, color = 'black')
+            ax1.text(annotation_pos[i][0], annotation_pos[i][1],
+                     text_annotations[i], fontsize=14, color='black')
 
     # Set axis ranges
     ax1.set_xlim([wl_min, wl_max])
     ax1.set_ylim([y_range[0], y_range[1]])
-        
+
     # Set axis labels
-    ax1.set_xlabel(r'Wavelength (μm)', fontsize = 16)
+    ax1.set_xlabel(r'Wavelength (μm)', fontsize=16)
 
     if (plot_type == 'transmission'):
-        ax1.set_ylabel(r'Transit Depth $(R_p/R_*)^2$', fontsize = 16)
+        ax1.set_ylabel(r'Transit Depth $(R_p/R_*)^2$', fontsize=16)
     elif (plot_type == 'time_average_transmission'):
-        ax1.set_ylabel(r'Average Transit Depth', fontsize = 16)
+        ax1.set_ylabel(r'Average Transit Depth', fontsize=16)
     elif (plot_type == 'emission'):
-        ax1.set_ylabel(r'Emission Spectrum $(F_p/F_*)$', fontsize = 16)
+        ax1.set_ylabel(r'Emission Spectrum $(F_p/F_*)$', fontsize=16)
     elif (plot_type == 'direct_emission'):
-        ax1.set_ylabel(r'$F_{\rm{p}}$ (W m$^{-2}$ m$^{-1}$)', fontsize = 16)
+        ax1.set_ylabel(r'$F_{\rm{p}}$ (W m$^{-2}$ m$^{-1}$)', fontsize=16)
     elif (plot_type == 'brightness_temp'):
-        ax1.set_ylabel(r'Brightness Temperature (K)', fontsize = 16)
+        ax1.set_ylabel(r'Brightness Temperature (K)', fontsize=16)
 
     # Add planet name label
-    ax1.text(0.02, 0.96, planet_name, horizontalalignment = 'left', 
-             verticalalignment = 'top', transform = ax1.transAxes, fontsize = 16)
-  
+    ax1.text(0.02, 0.96, planet_name, horizontalalignment='left',
+             verticalalignment='top', transform=ax1.transAxes, fontsize=16)
+
     # Add plot label
     if (plt_label != None):
-        ax1.text(0.03, 0.90, plt_label, horizontalalignment = 'left', 
-                 verticalalignment = 'top', transform = ax1.transAxes, fontsize = 14)
+        ax1.text(0.03, 0.90, plt_label, horizontalalignment='left',
+                 verticalalignment='top', transform=ax1.transAxes, fontsize=14)
 
     # Decide at which wavelengths to place major tick labels
     wl_ticks = set_spectrum_wl_ticks(wl_min, wl_max, wl_axis)
-        
+
     # Plot wl tick labels
     ax1.set_xticks(wl_ticks)
-    
+
     # Switch to two columns if many spectra are being plotted
     if (N_spectra >= 6):
         n_columns = 2
@@ -1694,23 +1708,23 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
 
     # Add box around legend
     if (legend_box == True) and (legend_location != 'outside right'):
-        legend = ax1.legend(loc = legend_location, shadow = True, prop = {'size':10}, 
-                            ncol = n_columns, frameon = True)    # Legend settings
+        legend = ax1.legend(loc=legend_location, shadow=True, prop={'size': 10},
+                            ncol=n_columns, frameon=True)  # Legend settings
         frame = legend.get_frame()
-        frame.set_facecolor('0.90') 
+        frame.set_facecolor('0.90')
     elif legend_location == 'outside right':
-        legend = ax1.legend(loc='center left', shadow = True, prop = {'size':10}, 
-                            ncol = 1, frameon=False,bbox_to_anchor=(1, 0.5))  
+        legend = ax1.legend(loc='center left', shadow=True, prop={'size': 10},
+                            ncol=1, frameon=False, bbox_to_anchor=(1, 0.5))
     else:
-        legend = ax1.legend(loc=legend_location, shadow = True, prop = {'size':10}, 
-                            ncol = n_columns, frameon = False)    # Legend settings
-        
+        legend = ax1.legend(loc=legend_location, shadow=True, prop={'size': 10},
+                            ncol=n_columns, frameon=False)  # Legend settings
+
     for legline in legend.legendHandles:
         if ((plot_full_res == True) or (show_data == True)):
             legline.set_linewidth(1.0)
         else:
             legline.set_linewidth(2.0)
-    
+
     plt.tight_layout()
 
     # Write figure to file
@@ -1719,19 +1733,19 @@ def plot_spectra(spectra, planet, data_properties = None, show_data = False,
             file_name = (output_dir + planet_name + '_' + plot_type + '_spectra.pdf')
         else:
             file_name = (output_dir + planet_name + '_' + plt_label + '_' +
-                        plot_type + '_spectra.pdf')
+                         plot_type + '_spectra.pdf')
 
-        plt.savefig(file_name, bbox_inches = 'tight')
+        plt.savefig(file_name, bbox_inches='tight')
 
     return fig
 
 
-def plot_data(data, planet_name, wl_min = None, wl_max = None, 
-              y_min = None, y_max = None, y_unit = 'transit_depth',
-              plt_label = None, data_colour_list = [], data_labels = [], 
-              data_marker_list = [], data_marker_size_list = [],
-              wl_axis = 'log', figure_shape = 'default', 
-              legend_location = 'upper right'):
+def plot_data(data, planet_name, wl_min=None, wl_max=None,
+              y_min=None, y_max=None, y_unit='transit_depth',
+              plt_label=None, data_colour_list=[], data_labels=[],
+              data_marker_list=[], data_marker_size_list=[],
+              wl_axis='log', figure_shape='default',
+              legend_location='upper right'):
     ''' 
     Plot a collection of datasets. This function can plot transmission or 
     emission datasets, according to the user's choice of 'y_unit'.
@@ -1790,7 +1804,7 @@ def plot_data(data, planet_name, wl_min = None, wl_max = None,
         plot_type = 'direct_emission'
     else:
         raise Exception("Unexpected y unit. Did you mean 'transit_depth' " +
-                       "or 'eclipse_depth'?")
+                        "or 'eclipse_depth'?")
 
     # Identify output directory location where the plot will be saved
     output_dir = './POSEIDON_output/' + planet_name + '/' + 'plots/'
@@ -1802,10 +1816,10 @@ def plot_data(data, planet_name, wl_min = None, wl_max = None,
     err_data = data['err_data']
     wl_data = data['wl_data']
     bin_size = data['half_bin']
-    
+
     # Find number of datasets to plot
     N_datasets = len(datasets)
-         
+
     # Quick validity checks for plotting
     if (N_datasets == 0):
         raise Exception("Must provide at least one dataset to plot!")
@@ -1819,91 +1833,91 @@ def plot_data(data, planet_name, wl_min = None, wl_max = None,
         raise Exception("Number of dataset markers does not match number of datasets.")
     if ((data_marker_size_list != []) and (N_datasets != len(data_marker_size_list))):
         raise Exception("Number of dataset marker sizes does not match number of datasets.")
-        
+
     # Define colours for plotted spectra (default or user choice)
-    if (data_colour_list == []):   # If user did not specify a custom colour list
+    if (data_colour_list == []):  # If user did not specify a custom colour list
         colours = ['orange', 'lime', 'cyan', 'magenta', 'brown', 'black', 'black']
     else:
         colours = data_colour_list
 
     # Define data marker symbols (default or user choice)
-    if (data_marker_list == []):   # If user did not specify a custom colour list
-        data_markers = ['o', 's', 'D', '*', 'X', 'p','p']
+    if (data_marker_list == []):  # If user did not specify a custom colour list
+        data_markers = ['o', 's', 'D', '*', 'X', 'p', 'p']
     else:
         data_markers = data_marker_list
 
     # Define data marker sizes (default or user choice)
-    if (data_marker_size_list == []):   # If user did not specify a custom colour list
-        data_markers_size = [3, 3, 3, 3, 3, 3,3]
+    if (data_marker_size_list == []):  # If user did not specify a custom colour list
+        data_markers_size = [3, 3, 3, 3, 3, 3, 3]
     else:
         data_markers_size = data_marker_size_list
-       
+
     # If the user did not specify a wavelength range, find min and max from input data
     if (wl_min == None):
-        wl_min = np.min(wl_data - 4*bin_size)  # Minimum at twice the bin width for the shortest wavelength data
+        wl_min = np.min(wl_data - 4 * bin_size)  # Minimum at twice the bin width for the shortest wavelength data
     else:
         wl_min = wl_min
- 
+
     if (wl_max == None):
-        wl_max = np.max(wl_data + 4*bin_size)  # Maximum at twice the bin width for the longest wavelength data
+        wl_max = np.max(wl_data + 4 * bin_size)  # Maximum at twice the bin width for the longest wavelength data
     else:
         wl_max = wl_max
 
     # If the user did not specify a y range, find min and max from data
     if (y_min == None):
-        y_min_plt = 0.995 * np.min(ydata - err_data) # Extend slightly below
+        y_min_plt = 0.995 * np.min(ydata - err_data)  # Extend slightly below
     else:
         y_min_plt = y_min
 
     if (y_max == None):
-        y_max_plt = 1.005 * np.max(ydata + err_data) # Extend slightly above
+        y_max_plt = 1.005 * np.max(ydata + err_data)  # Extend slightly above
     else:
         y_max_plt = y_max
-        
-    #***** Format x and y ticks *****#
+
+    # ***** Format x and y ticks *****#
 
     # Create x formatting objects
-    if (wl_max < 1.0):    # If plotting over the optical range
+    if (wl_max < 1.0):  # If plotting over the optical range
         xmajorLocator = MultipleLocator(0.1)
         xminorLocator = MultipleLocator(0.02)
-        
-    else:                 # If plot extends into the infrared
+
+    else:  # If plot extends into the infrared
         xmajorLocator = MultipleLocator(1.0)
         xminorLocator = MultipleLocator(0.1)
-            
+
     xmajorFormatter = FormatStrFormatter('%g')
     xminorFormatter = NullFormatter()
-    
+
     # Aim for 10 major y-axis labels
-    ymajor_spacing = round_sig_figs((y_max_plt - y_min_plt), 1)/10
-    yminor_spacing = ymajor_spacing/10
-    
+    ymajor_spacing = round_sig_figs((y_max_plt - y_min_plt), 1) / 10
+    yminor_spacing = ymajor_spacing / 10
+
     major_exponent = round_sig_figs(np.floor(np.log10(np.abs(ymajor_spacing))), 1)
     minor_exponent = round_sig_figs(np.floor(np.log10(np.abs(yminor_spacing))), 1)
-    
+
     # If last digit of y labels would be a multiple of 6,7,8,or 9, bump up to 10
-    if (ymajor_spacing > 5*np.power(10, major_exponent)):
-        ymajor_spacing = 1*np.power(10, major_exponent+1)
-    elif (ymajor_spacing == 3*np.power(10, major_exponent)):
-        ymajor_spacing = 2*np.power(10, major_exponent)
-    if (yminor_spacing > 5*np.power(10, minor_exponent)):
-        yminor_spacing = 1*np.power(10, minor_exponent+1)
-    elif (yminor_spacing == 3*np.power(10, minor_exponent)):
-        yminor_spacing = 2*np.power(10, minor_exponent)
-    
+    if (ymajor_spacing > 5 * np.power(10, major_exponent)):
+        ymajor_spacing = 1 * np.power(10, major_exponent + 1)
+    elif (ymajor_spacing == 3 * np.power(10, major_exponent)):
+        ymajor_spacing = 2 * np.power(10, major_exponent)
+    if (yminor_spacing > 5 * np.power(10, minor_exponent)):
+        yminor_spacing = 1 * np.power(10, minor_exponent + 1)
+    elif (yminor_spacing == 3 * np.power(10, minor_exponent)):
+        yminor_spacing = 2 * np.power(10, minor_exponent)
+
     # Refine y range to be a multiple of the tick spacing (only if range not specified by user)
     if (y_min == None):
-        y_min_plt = np.floor(y_min_plt/ymajor_spacing)*ymajor_spacing
+        y_min_plt = np.floor(y_min_plt / ymajor_spacing) * ymajor_spacing
     if (y_max == None):
-        y_max_plt = np.ceil(y_max_plt/ymajor_spacing)*ymajor_spacing
- 
+        y_max_plt = np.ceil(y_max_plt / ymajor_spacing) * ymajor_spacing
+
     # Set y range
     y_range = [y_min_plt, y_max_plt]
 
     # Create y formatting objects
-    ymajorLocator   = MultipleLocator(ymajor_spacing)
+    ymajorLocator = MultipleLocator(ymajor_spacing)
     ymajorFormatter = ScalarFormatter(useMathText=True)
-    ymajorFormatter.set_powerlimits((0,0))
+    ymajorFormatter.set_powerlimits((0, 0))
     yminorLocator = MultipleLocator(yminor_spacing)
 
     # Generate figure and axes
@@ -1911,15 +1925,14 @@ def plot_data(data, planet_name, wl_min = None, wl_max = None,
 
     # Set figure size
     if (figure_shape == 'default'):
-        fig.set_size_inches(8.0, 6.0)    # Default Matplotlib figure size
+        fig.set_size_inches(8.0, 6.0)  # Default Matplotlib figure size
     elif (figure_shape == 'wide'):
-        fig.set_size_inches(10.667, 6.0)    # 16:9 widescreen format (for two column figures) 
+        fig.set_size_inches(10.667, 6.0)  # 16:9 widescreen format (for two column figures)
     elif (legend_location == 'outside right'):
-        fig.set_size_inches(12, 8.0) 
+        fig.set_size_inches(12, 8.0)
 
-    
     ax1 = plt.gca()
-    
+
     # Set x axis to be linear or logarithmic
     ax1.set_xscale(wl_axis)
 
@@ -1931,18 +1944,18 @@ def plot_data(data, planet_name, wl_min = None, wl_max = None,
     ax1.yaxis.set_major_locator(ymajorLocator)
     ax1.yaxis.set_major_formatter(ymajorFormatter)
     ax1.yaxis.set_minor_locator(yminorLocator)
-    
+
     for i in range(N_datasets):
-        
+
         # If user did not specify dataset labels, use the instrument names
         if (data_labels == []):
             label_i = instruments[i]
         else:
             label_i = data_labels[i]
-        
+
         # Find start and end indices of dataset_i in dataset property arrays
         idx_start = data['len_data_idx'][i]
-        idx_end = data['len_data_idx'][i+1]
+        idx_end = data['len_data_idx'][i + 1]
 
         # Extract the ith dataset
         wl_data_i = wl_data[idx_start:idx_end]
@@ -1951,57 +1964,57 @@ def plot_data(data, planet_name, wl_min = None, wl_max = None,
         bin_size_i = bin_size[idx_start:idx_end]
 
         # Plot dataset
-        markers, caps, bars = ax1.errorbar(wl_data_i, ydata_i, yerr=err_data_i, 
-                                            xerr=bin_size_i, marker=data_markers[i], 
-                                            markersize=data_markers_size[i], 
-                                            capsize=2, ls='none', elinewidth=0.8, 
-                                            color=colours[i], alpha = 0.8,
-                                            ecolor = 'black', label=label_i)
+        markers, caps, bars = ax1.errorbar(wl_data_i, ydata_i, yerr=err_data_i,
+                                           xerr=bin_size_i, marker=data_markers[i],
+                                           markersize=data_markers_size[i],
+                                           capsize=2, ls='none', elinewidth=0.8,
+                                           color=colours[i], alpha=0.8,
+                                           ecolor='black', label=label_i)
 
         [markers.set_alpha(1.0)]
-            
+
     # Set axis ranges
     ax1.set_xlim([wl_min, wl_max])
     ax1.set_ylim([y_range[0], y_range[1]])
-        
+
     # Set axis labels
-    ax1.set_xlabel(r'Wavelength (μm)', fontsize = 16)
+    ax1.set_xlabel(r'Wavelength (μm)', fontsize=16)
 
     if (plot_type == 'transmission'):
-        ax1.set_ylabel(r'Transit Depth $(R_p/R_*)^2$', fontsize = 16)
+        ax1.set_ylabel(r'Transit Depth $(R_p/R_*)^2$', fontsize=16)
     elif (plot_type == 'emission'):
-        ax1.set_ylabel(r'Emission Spectrum $(F_p/F_*)$', fontsize = 16)
+        ax1.set_ylabel(r'Emission Spectrum $(F_p/F_*)$', fontsize=16)
     elif (plot_type == 'direct_emission'):
-        ax1.set_ylabel(r'$F_{\rm{p}}$ (W m$^{-2}$ m$^{-1}$)', fontsize = 16)
+        ax1.set_ylabel(r'$F_{\rm{p}}$ (W m$^{-2}$ m$^{-1}$)', fontsize=16)
 
     # Add planet name label
-    ax1.text(0.02, 0.96, planet_name, horizontalalignment='left', 
-             verticalalignment='top', transform=ax1.transAxes, fontsize = 16)
-  
+    ax1.text(0.02, 0.96, planet_name, horizontalalignment='left',
+             verticalalignment='top', transform=ax1.transAxes, fontsize=16)
+
     # Add plot label
     if (plt_label != None):
-        ax1.text(0.03, 0.90, plt_label, horizontalalignment='left', 
-                 verticalalignment='top', transform=ax1.transAxes, fontsize = 14)
+        ax1.text(0.03, 0.90, plt_label, horizontalalignment='left',
+                 verticalalignment='top', transform=ax1.transAxes, fontsize=14)
 
     # Decide at which wavelengths to place major tick labels
     wl_ticks = set_spectrum_wl_ticks(wl_min, wl_max, wl_axis)
-        
+
     # Plot wl tick labels
     ax1.set_xticks(wl_ticks)
-    
-    legend = ax1.legend(loc = legend_location, shadow = True, prop = {'size':10}, 
-                        ncol = 1, frameon = True)    # Legend settings
-    
+
+    legend = ax1.legend(loc=legend_location, shadow=True, prop={'size': 10},
+                        ncol=1, frameon=True)  # Legend settings
+
     if legend_location == 'outside right':
-        legend = ax1.legend(loc='center left', shadow = True, prop = {'size':10}, 
-                            ncol = 1, frameon=False,bbox_to_anchor=(1, 0.5))
-    
+        legend = ax1.legend(loc='center left', shadow=True, prop={'size': 10},
+                            ncol=1, frameon=False, bbox_to_anchor=(1, 0.5))
+
     frame = legend.get_frame()
-    frame.set_facecolor('0.90') 
-        
+    frame.set_facecolor('0.90')
+
     for legline in legend.legendHandles:
         legline.set_linewidth(1.0)
-    
+
     plt.tight_layout()
 
     # Write figure to file
@@ -2009,7 +2022,7 @@ def plot_data(data, planet_name, wl_min = None, wl_max = None,
         file_name = (output_dir + planet_name +
                      '_data.pdf')
     else:
-        file_name = (output_dir + planet_name + '_' + plt_label + 
+        file_name = (output_dir + planet_name + '_' + plt_label +
                      '_data.pdf')
 
     plt.savefig(file_name, bbox_inches='tight')
@@ -2017,20 +2030,63 @@ def plot_data(data, planet_name, wl_min = None, wl_max = None,
     return fig
 
 
-def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1, 
-                           spectra_high1, spectra_high2, planet_name, 
-                           data_properties, R_to_bin = 100, plt_label = None,
-                           show_ymodel = True, wl_min = None, wl_max = None, 
-                           y_min = None, y_max = None, y_unit = 'transit_depth', 
-                           colour_list = [], spectra_labels = [],
-                           data_colour_list = [], data_labels = [],
-                           data_marker_list = [], data_marker_size_list = [],
-                           binned_colour_list = [], text_annotations = [],
-                           annotation_pos = [],
-                           wl_axis = 'log', figure_shape = 'default',
-                           legend_location = 'upper right', legend_box = False,
-                           ax = None, save_fig = True,
-                           sigma_to_plot = 2):
+def plot_data_gmm(data, save):
+    """
+    Check read_data_mod and load_data_mod are able to read a GMM spectrum
+
+    save: True or False. Will save in praxis/poseidon_dev/gmm_likelihood/dev_plots
+
+    not as functional as visuals.plot_data but this is only being used for testing purposes
+
+    :return:
+    """
+    # change error to
+    wl_data = data['wl_data']
+    half_bin = data['half_bin']
+    transit_depths = data['ydata']
+    transit_depth_errors = data['err_data']
+    wvs = data['wl_data']
+
+    check_plot = True
+    if check_plot:
+        td_mixture_samples = []
+        for comp_mean, comp_sigma in zip(transit_depths, transit_depth_errors):
+            comp_samples = np.vstack(
+                [np.random.normal(loc=comp_mean[i], scale=comp_sigma[i], size=100000) for i in range(len(wvs))])
+            td_mixture_samples.append(comp_samples)
+        td_mixture_samples = np.concatenate(td_mixture_samples, axis=1)
+
+        fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
+        parts = ax1.violinplot([d * 1.e6 for d in td_mixture_samples], wvs,
+                               vert=True, showmedians=True, showextrema=False, widths=0.2,
+                               bw_method="silverman", points=100)
+        # for pc in parts['bodies']:
+        #     pc.set_facecolor('indigo')
+        #     pc.set_alpha(1)
+        ax1.set_xlabel("Wavelength / $\\rm{{\mu m}}$", fontsize=14)
+        ax1.set_ylabel("Transit depth / ppm", fontsize=14)
+        plt.tight_layout()
+        if save:
+            plt.savefig('/home/qe18916/poseidon_dev/gmm_likelihoods/dev_plots/gmm_data_violin.pdf')
+        plt.show()
+
+    return
+
+
+def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
+                           spectra_high1, spectra_high2, planet_name,
+                           data_properties, R_to_bin=100, plt_label=None,
+                           show_ymodel=True, wl_min=None, wl_max=None,
+                           y_min=None, y_max=None, y_unit='transit_depth',
+                           colour_list=[], spectra_labels=[],
+                           data_colour_list=[], data_labels=[],
+                           data_marker_list=[], data_marker_size_list=[],
+                           binned_colour_list=[], text_annotations=[],
+                           annotation_pos=[],
+                           wl_axis='log', figure_shape='default',
+                           legend_location='upper right', legend_box=False,
+                           ax=None, save_fig=True,
+                           sigma_to_plot=2):
     ''' 
     Plot a collection of individual model spectra. This function can plot
     transmission or emission spectra, according to the user's choice of 'y_unit'.
@@ -2122,14 +2178,14 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
         plot_type = 'direct_emission'
     else:
         raise Exception("Unexpected y unit. Did you mean 'transit_depth' " +
-                       "or 'eclipse_depth'?")
-    
+                        "or 'eclipse_depth'?")
+
     # Find number of spectra to plot
     N_spectra = len(spectra_median)
 
     # Identify output directory location where the plot will be saved
     output_dir = './POSEIDON_output/' + planet_name + '/plots/'
-         
+
     # Quick spectra validity checks for plotting
     if (N_spectra == 0):
         raise Exception("Must provide at least one spectrum to plot!")
@@ -2143,7 +2199,7 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
         raise Exception("Number of model labels does not match number of spectra.")
 
     # Define colours for plotted spectra (default or user choice)
-    if (colour_list == []):   # If user did not specify a custom colour list
+    if (colour_list == []):  # If user did not specify a custom colour list
         colours = ['purple', 'darkorange', 'green']
     else:
         colours = colour_list
@@ -2164,7 +2220,7 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
 
     # Find number of datasets to plot
     N_datasets = len(datasets)
-        
+
     # Quick data validity checks for plotting
     if (N_datasets == 0):
         raise Exception("Must provide at least one dataset to plot!")
@@ -2180,136 +2236,132 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
         raise Exception("Number of dataset marker sizes does not match number of datasets.")
     if ((text_annotations != []) and (len(text_annotations) != len(annotation_pos))):
         raise Exception("Number of annotation labels does not match provided positions.")
-        
+
     # Define colours for plotted spectra (default or user choice)
-    if (data_colour_list == []):   # If user did not specify a custom colour list
+    if (data_colour_list == []):  # If user did not specify a custom colour list
         data_colours = ['lime', 'cyan', 'magenta', 'orange', 'brown', 'black', 'black']
     else:
         data_colours = data_colour_list
 
     # Define data marker symbols (default or user choice)
-    if (data_marker_list == []):   # If user did not specify a custom colour list
+    if (data_marker_list == []):  # If user did not specify a custom colour list
         data_markers = ['o', 's', 'D', '*', 'X', 'p', 'p']
     else:
         data_markers = data_marker_list
 
     # Define data marker sizes (default or user choice)
-    if (data_marker_size_list == []):   # If user did not specify a custom colour list
+    if (data_marker_size_list == []):  # If user did not specify a custom colour list
         data_markers_size = [3, 3, 3, 3, 3, 3, 3]
     else:
         data_markers_size = data_marker_size_list
-                
+
     # If the user did not specify a wavelength range, find min and max from input models
     if (wl_min == None):
-        
-        wl_min = 1e10   # Dummy value
-        
+
+        wl_min = 1e10  # Dummy value
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_spectra):
-            
             wl_min_i = np.min(spectra_median[i][1])
             wl_min = min(wl_min, wl_min_i)
-            
+
     # If the user did not specify a wavelength range, find min and max from input models
     if (wl_max == None):
-        
+
         wl_max = 1e-10  # Dummy value
-        
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_spectra):
-            
             wl_max_i = np.max(spectra_median[i][1])
             wl_max = max(wl_max, wl_max_i)
 
     # If the user did not specify a y range, find min and max from input models
     if (y_min == None):
-        
-        y_min_plt = 1e10   # Dummy value
-        
+
+        y_min_plt = 1e10  # Dummy value
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_spectra):
-
             (spec_low2, wl) = spectra_low2[i]
             _, spec_low2_binned, _ = bin_spectrum(wl, spec_low2, R_to_bin)
 
             y_min_i = np.min(spec_low2_binned)
             y_min_plt = min(y_min_plt, y_min_i)
-            
+
         # Check if the lowest data point falls below the current y-limit
         if (y_min_plt > min(ydata - err_data)):
             y_min_plt = min(ydata - err_data)
-            
-        y_min_plt = 0.995*y_min_plt  # Extend slightly below
-        
+
+        y_min_plt = 0.995 * y_min_plt  # Extend slightly below
+
     else:
         y_min_plt = y_min
 
     if (y_max == None):
-        
+
         y_max_plt = 1e-10  # Dummy value
-        
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_spectra):
-
             (spec_high2, wl) = spectra_high2[i]
             _, spec_high2_binned, _ = bin_spectrum(wl, spec_high2, R_to_bin)
 
             y_max_i = np.max(spec_high2_binned)
             y_max_plt = max(y_max_plt, y_max_i)
-            
+
         # Check if the highest data point falls above the current y-limit
         if (y_max_plt < max(ydata + err_data)):
             y_max_plt = max(ydata + err_data)
-            
-        y_max_plt = 1.040*y_max_plt  # Extend slightly above
-        
+
+        y_max_plt = 1.040 * y_max_plt  # Extend slightly above
+
     else:
         y_max_plt = y_max
 
-    #***** Format x and y ticks *****#
+    # ***** Format x and y ticks *****#
 
     # Create x formatting objects
-    if (wl_max < 1.0):    # If plotting over the optical range
+    if (wl_max < 1.0):  # If plotting over the optical range
         xmajorLocator = MultipleLocator(0.1)
         xminorLocator = MultipleLocator(0.02)
-        
-    else:                 # If plot extends into the infrared
+
+    else:  # If plot extends into the infrared
         xmajorLocator = MultipleLocator(1.0)
         xminorLocator = MultipleLocator(0.1)
-            
+
     xmajorFormatter = FormatStrFormatter('%g')
     xminorFormatter = NullFormatter()
-    
+
     # Aim for 10 major y-axis labels
-    ymajor_spacing = round_sig_figs((y_max_plt - y_min_plt), 1)/10
-    yminor_spacing = ymajor_spacing/10
-    
+    ymajor_spacing = round_sig_figs((y_max_plt - y_min_plt), 1) / 10
+    yminor_spacing = ymajor_spacing / 10
+
     major_exponent = round_sig_figs(np.floor(np.log10(np.abs(ymajor_spacing))), 1)
     minor_exponent = round_sig_figs(np.floor(np.log10(np.abs(yminor_spacing))), 1)
-    
+
     # If last digit of y labels would be a multiple of 6,7,8,or 9, bump up to 10
-    if (ymajor_spacing > 5*np.power(10, major_exponent)):
-        ymajor_spacing = 1*np.power(10, major_exponent+1)
-    elif (ymajor_spacing == 3*np.power(10, major_exponent)):
-        ymajor_spacing = 2*np.power(10, major_exponent)
-    if (yminor_spacing > 5*np.power(10, minor_exponent)):
-        yminor_spacing = 1*np.power(10, minor_exponent+1)
-    elif (yminor_spacing == 3*np.power(10, minor_exponent)):
-        yminor_spacing = 2*np.power(10, minor_exponent)
+    if (ymajor_spacing > 5 * np.power(10, major_exponent)):
+        ymajor_spacing = 1 * np.power(10, major_exponent + 1)
+    elif (ymajor_spacing == 3 * np.power(10, major_exponent)):
+        ymajor_spacing = 2 * np.power(10, major_exponent)
+    if (yminor_spacing > 5 * np.power(10, minor_exponent)):
+        yminor_spacing = 1 * np.power(10, minor_exponent + 1)
+    elif (yminor_spacing == 3 * np.power(10, minor_exponent)):
+        yminor_spacing = 2 * np.power(10, minor_exponent)
 
     # Refine y range to be a multiple of the tick spacing (only if range not specified by user)
     if (y_min == None):
-        y_min_plt = np.floor(y_min_plt/ymajor_spacing)*ymajor_spacing
+        y_min_plt = np.floor(y_min_plt / ymajor_spacing) * ymajor_spacing
     if (y_max == None):
-        y_max_plt = np.ceil(y_max_plt/ymajor_spacing)*ymajor_spacing
- 
+        y_max_plt = np.ceil(y_max_plt / ymajor_spacing) * ymajor_spacing
+
     # Set y range
     y_range = [y_min_plt, y_max_plt]
 
     # Create y formatting objects
-    ymajorLocator   = MultipleLocator(ymajor_spacing)
+    ymajorLocator = MultipleLocator(ymajor_spacing)
     ymajorFormatter = ScalarFormatter(useMathText=True, useOffset=False)
-    ymajorFormatter.set_powerlimits((0,0))
+    ymajorFormatter.set_powerlimits((0, 0))
     yminorLocator = MultipleLocator(yminor_spacing)
 
     # Generate figure and axes
@@ -2317,17 +2369,17 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
 
     # Set figure size
     if (figure_shape == 'default'):
-        fig.set_size_inches(8.0, 6.0)    # Default Matplotlib figure size
+        fig.set_size_inches(8.0, 6.0)  # Default Matplotlib figure size
     elif (figure_shape == 'wide'):
-        fig.set_size_inches(10.667, 6.0)    # 16:9 widescreen format (for two column figures) 
+        fig.set_size_inches(10.667, 6.0)  # 16:9 widescreen format (for two column figures)
     elif (legend_location == 'outside right'):
-        fig.set_size_inches(12, 8.0) 
+        fig.set_size_inches(12, 8.0)
 
     if (ax == None):
         ax1 = plt.gca()
     else:
         ax1 = ax
-    
+
     # Set x axis to be linear or logarithmic
     ax1.set_xscale(wl_axis)
 
@@ -2339,32 +2391,32 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
     ax1.yaxis.set_major_locator(ymajorLocator)
     ax1.yaxis.set_major_formatter(ymajorFormatter)
     ax1.yaxis.set_minor_locator(yminorLocator)
-    
+
     for i in range(N_spectra):
-        
+
         # Extract spectrum and wavelength grid
         (spec_med, wl) = spectra_median[i]
         (spec_low1, wl) = spectra_low1[i]
         (spec_low2, wl) = spectra_low2[i]
         (spec_high1, wl) = spectra_high1[i]
         (spec_high2, wl) = spectra_high2[i]
-        
+
         # If user did not specify a model label, just call them "Model 1, 2" etc.
         if (spectra_labels == []):
             if (N_spectra == 1):
                 label_i = r'Retrieved Spectrum'
             else:
-                label_i = r'Retrieved Spectrum ' + str(i+1)
+                label_i = r'Retrieved Spectrum ' + str(i + 1)
         else:
             label_i = spectra_labels[i]
-        
+
         # Calculate binned wavelength and retrieved spectra confidence intervals
         wl_binned, spec_med_binned, _ = bin_spectrum(wl, spec_med, R_to_bin)
         wl_binned, spec_low1_binned, _ = bin_spectrum(wl, spec_low1, R_to_bin)
         wl_binned, spec_low2_binned, _ = bin_spectrum(wl, spec_low2, R_to_bin)
         wl_binned, spec_high1_binned, _ = bin_spectrum(wl, spec_high1, R_to_bin)
         wl_binned, spec_high2_binned, _ = bin_spectrum(wl, spec_high2, R_to_bin)
-        
+
         # Only add sigma intervals to legend for one model (avoids clutter)
         if (N_spectra == 1):
             label_med = label_i + r' (Median)'
@@ -2376,42 +2428,42 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
             label_two_sig = ''
 
         # Plot median retrieved spectrum
-        ax1.plot(wl_binned, spec_med_binned, lw = 1.0,  
-                 color = scale_lightness(colours[i], 1.0), 
-                 label = label_med)
-        
+        ax1.plot(wl_binned, spec_med_binned, lw=1.0,
+                 color=scale_lightness(colours[i], 1.0),
+                 label=label_med)
+
         # Plot +/- 1σ confidence region
         if sigma_to_plot == 1 or sigma_to_plot == 2:
             ax1.fill_between(wl_binned, spec_low1_binned, spec_high1_binned,
-                            lw=0.0, alpha=0.5, facecolor=colours[i],  
-                            label = label_one_sig)
+                             lw=0.0, alpha=0.5, facecolor=colours[i],
+                             label=label_one_sig)
 
         # Plot +/- 2σ sigma confidence region
-        if sigma_to_plot ==2 :
+        if sigma_to_plot == 2:
             ax1.fill_between(wl_binned, spec_low2_binned, spec_high2_binned,
-                            lw=0.0, alpha=0.2, facecolor=colours[i],  
-                            label = label_two_sig)
+                             lw=0.0, alpha=0.2, facecolor=colours[i],
+                             label=label_two_sig)
 
         # Overplot median model, binned to resolution of the observations
         if (show_ymodel == True):
             ymodel_median = bin_spectrum_to_data(spec_med, wl, data_properties)
 
-            ax1.scatter(wl_data, ymodel_median, color = binned_colours[i], 
+            ax1.scatter(wl_data, ymodel_median, color=binned_colours[i],
                         s=5, marker='D', lw=0.5, alpha=0.8, edgecolor='black',
-                        label = label_i + r' (Binned)', zorder = 200)
-            
+                        label=label_i + r' (Binned)', zorder=200)
+
     # Overplot datapoints
     for i in range(N_datasets):
-        
+
         # If user did not specify dataset labels, use the instrument names
         if (data_labels == []):
             label_i = instruments[i]
         else:
             label_i = data_labels[i]
-        
+
         # Find start and end indices of dataset_i in dataset property arrays
         idx_start = data_properties['len_data_idx'][i]
-        idx_end = data_properties['len_data_idx'][i+1]
+        idx_end = data_properties['len_data_idx'][i + 1]
 
         # Extract the ith dataset
         wl_data_i = wl_data[idx_start:idx_end]
@@ -2420,13 +2472,13 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
         bin_size_i = bin_size[idx_start:idx_end]
 
         # Plot dataset
-        markers, caps, bars = ax1.errorbar(wl_data_i, ydata_i, yerr=err_data_i, 
-                                           xerr=bin_size_i, marker=data_markers[i], 
-                                           markersize=data_markers_size[i], 
-                                           capsize=2, ls='none', elinewidth=0.8, 
-                                           color=data_colours[i], alpha = 0.8,
-                                           ecolor = 'black', label=label_i,
-                                           zorder = 100)
+        markers, caps, bars = ax1.errorbar(wl_data_i, ydata_i, yerr=err_data_i,
+                                           xerr=bin_size_i, marker=data_markers[i],
+                                           markersize=data_markers_size[i],
+                                           capsize=2, ls='none', elinewidth=0.8,
+                                           color=data_colours[i], alpha=0.8,
+                                           ecolor='black', label=label_i,
+                                           zorder=100)
 
         [markers.set_alpha(1.0)]
 
@@ -2434,55 +2486,54 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
     if (text_annotations != []):
 
         for i in range(len(text_annotations)):
-
             # Plot each annotation at the location provided by the user
-            ax1.text(annotation_pos[i][0], annotation_pos[i][1], 
-                     text_annotations[i], fontsize=14, color = 'black')
-    
+            ax1.text(annotation_pos[i][0], annotation_pos[i][1],
+                     text_annotations[i], fontsize=14, color='black')
+
     # Set axis ranges
     ax1.set_xlim([wl_min, wl_max])
     ax1.set_ylim([y_range[0], y_range[1]])
-        
+
     # Set axis labels
-    ax1.set_xlabel(r'Wavelength (μm)', fontsize = 16)
+    ax1.set_xlabel(r'Wavelength (μm)', fontsize=16)
 
     if (plot_type == 'transmission'):
-        ax1.set_ylabel(r'Transit Depth $(R_p/R_*)^2$', fontsize = 16)
+        ax1.set_ylabel(r'Transit Depth $(R_p/R_*)^2$', fontsize=16)
     elif (plot_type == 'emission'):
-        ax1.set_ylabel(r'Emission Spectrum $(F_p/F_*)$', fontsize = 16)
+        ax1.set_ylabel(r'Emission Spectrum $(F_p/F_*)$', fontsize=16)
     elif (plot_type == 'direct_emission'):
-        ax1.set_ylabel(r'$F_{\rm{p}}$ (W m$^{-2}$ m$^{-1}$)', fontsize = 16)
+        ax1.set_ylabel(r'$F_{\rm{p}}$ (W m$^{-2}$ m$^{-1}$)', fontsize=16)
 
     # Add planet name label
-    ax1.text(0.02, 0.96, planet_name, horizontalalignment = 'left', 
-             verticalalignment = 'top', transform = ax1.transAxes, fontsize = 16)
+    ax1.text(0.02, 0.96, planet_name, horizontalalignment='left',
+             verticalalignment='top', transform=ax1.transAxes, fontsize=16)
 
     # Add plot label
     if (plt_label != None):
-        ax1.text(0.03, 0.90, plt_label, horizontalalignment = 'left', 
-                 verticalalignment = 'top', transform = ax1.transAxes, fontsize = 14)
+        ax1.text(0.03, 0.90, plt_label, horizontalalignment='left',
+                 verticalalignment='top', transform=ax1.transAxes, fontsize=14)
 
     # Decide at which wavelengths to place major tick labels
     wl_ticks = set_spectrum_wl_ticks(wl_min, wl_max, wl_axis)
-        
+
     # Plot wl tick labels
     ax1.set_xticks(wl_ticks)
 
     # Add box around legend
     if (legend_box == True):
-        legend = ax1.legend(loc = legend_location, shadow = True, prop = {'size':10}, 
-                            ncol = 1, frameon = True)    # Legend settings
+        legend = ax1.legend(loc=legend_location, shadow=True, prop={'size': 10},
+                            ncol=1, frameon=True)  # Legend settings
         frame = legend.get_frame()
-        frame.set_facecolor('0.90') 
+        frame.set_facecolor('0.90')
 
     elif legend_location == 'outside right':
-        legend = ax1.legend(loc='center left', shadow = True, prop = {'size':10}, 
-                            ncol = 1, frameon=False,bbox_to_anchor=(1, 0.5))
-        
+        legend = ax1.legend(loc='center left', shadow=True, prop={'size': 10},
+                            ncol=1, frameon=False, bbox_to_anchor=(1, 0.5))
+
     else:
-        legend = ax1.legend(loc=legend_location, shadow = True, prop = {'size':10}, 
-                            ncol = 1, frameon=False)    # Legend settings
-            
+        legend = ax1.legend(loc=legend_location, shadow=True, prop={'size': 10},
+                            ncol=1, frameon=False)  # Legend settings
+
     plt.tight_layout()
 
     # Write figure to file
@@ -2492,17 +2543,102 @@ def plot_spectra_retrieved(spectra_median, spectra_low2, spectra_low1,
         else:
             file_name = output_dir + planet_name + '_' + plt_label + '_retrieved_spectra.pdf'
 
-        plt.savefig(file_name, bbox_inches = 'tight')
+        plt.savefig(file_name, bbox_inches='tight')
 
     return fig
 
 
+def plot_spectra_retrieved_gmm(spectra_median, spectra_low2, spectra_low1, spectra_high1, spectra_high2,
+                               planet_name, model_name, data,
+                               R_to_bin=100, colours=['dodgerblue'], save=True):
+    """
+    Check read_data_mod and load_data_mod are able to read a GMM spectrum
+
+    save: True or False. Will save in praxis/poseidon_dev/gmm_likelihood/dev_plots
+
+    not as functional as visuals.plot_data but this is only being used for testing purposes
+
+    Only applicable for one dataset
+
+    :return:
+    """
+    save_name = model_name
+
+    spec_med, wl = spectra_median[0]
+    spec_low1, wl = spectra_low1[0]
+    spec_low2, wl = spectra_low2[0]
+    spec_high1, wl = spectra_high1[0]
+    spec_high2, wl = spectra_high2[0]
+    
+    # Calculate binned wavelength and retrieved spectra confidence intervals
+    wl_binned, spec_med_binned, _ = bin_spectrum(wl, spec_med, R_to_bin)
+    wl_binned, spec_low1_binned, _ = bin_spectrum(wl, spec_low1, R_to_bin)
+    wl_binned, spec_low2_binned, _ = bin_spectrum(wl, spec_low2, R_to_bin)
+    wl_binned, spec_high1_binned, _ = bin_spectrum(wl, spec_high1, R_to_bin)
+    wl_binned, spec_high2_binned, _ = bin_spectrum(wl, spec_high2, R_to_bin)
+
+
+    label_med = r' Median Spectrum'
+    label_one_sig = r'Spectrum ($1 \sigma$)'
+    label_two_sig =  r'Spectrum ($2 \sigma$)'
+
+    fig, ax1 = plt.subplots(1, 1)
+
+    ax1.plot(wl_binned, spec_med_binned, lw=1.0,
+             color=scale_lightness(colours[0], 1.0),
+             label=label_med)
+
+    ax1.fill_between(wl_binned, spec_low1_binned, spec_high1_binned,
+                     lw=0.0, alpha=0.5, facecolor=colours[0],
+                     label=label_one_sig)
+
+    ax1.fill_between(wl_binned, spec_low2_binned, spec_high2_binned,
+                     lw=0.0, alpha=0.2, facecolor=colours[0],
+                     label=label_two_sig)
+
+
+    # change error to
+    wl_data = data['wl_data']
+    half_bin = data['half_bin']
+    transit_depths = data['ydata']
+    transit_depth_errors = data['err_data']
+    wvs = data['wl_data']
+
+    check_plot = True
+    if check_plot:
+        td_mixture_samples = []
+        for comp_mean, comp_sigma in zip(transit_depths, transit_depth_errors):
+            comp_samples = np.vstack(
+                [np.random.normal(loc=comp_mean[i], scale=comp_sigma[i], size=100000) for i in range(len(wvs))])
+            td_mixture_samples.append(comp_samples)
+        td_mixture_samples = np.concatenate(td_mixture_samples, axis=1)
+
+        parts = ax1.violinplot([d for d in td_mixture_samples], wvs,
+                               vert=True, showmedians=True, showextrema=False, widths=0.2,
+                               bw_method="silverman", points=100)
+        # for pc in parts['bodies']:
+        #     pc.set_facecolor('indigo')
+        #     pc.set_alpha(1)
+        ax1.set_xlabel(r"Wavelength / $\rm{{\mu m}}$", fontsize=14)
+        ax1.set_ylabel(r"Transit depth / $(\rm{R_P}/\rm{R_*})^2$", fontsize=14)
+        plt.tight_layout()
+
+        plt.legend()
+
+        if save:
+            savepath = '/home/qe18916/poseidon_dev/gmm_likelihoods/dev_plots/'
+            plt.savefig(savepath + save_name + '.pdf')
+        plt.show()
+
+        return
+
+
 def plot_PT_retrieved(planet_name, PT_median, PT_low2, PT_low1, PT_high1,
-                      PT_high2, T_true = None, Atmosphere_dimension = 1, 
-                      TwoD_type = None, plt_label = None, show_profiles = [],
-                      PT_labels = [], colour_list = [], log_P_min = None,
-                      log_P_max = None, T_min = None, T_max = None,
-                      legend_location = 'lower left'):
+                      PT_high2, T_true=None, Atmosphere_dimension=1,
+                      TwoD_type=None, plt_label=None, show_profiles=[],
+                      PT_labels=[], colour_list=[], log_P_min=None,
+                      log_P_max=None, T_min=None, T_max=None,
+                      legend_location='lower left'):
     '''
     Plot retrieved Pressure-Temperature (P-T) profiles.
     
@@ -2573,47 +2709,45 @@ def plot_PT_retrieved(planet_name, PT_median, PT_low2, PT_low1, PT_high1,
         raise Exception("Number of model labels does not match number of P-T profiles.")
 
     # Define colours for plotted spectra (default or user choice)
-    if (colour_list == []):   # If user did not specify a custom colour list
+    if (colour_list == []):  # If user did not specify a custom colour list
         colours = ['purple', 'darkorange', 'green']
     else:
         colours = colour_list
 
     # If the user did not specify a temperature range, find min and max from input models
     if (T_min == None):
-        
-        T_min = 1e10   # Dummy value
-        
+
+        T_min = 1e10  # Dummy value
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_PT):
-            
             T_min_i = np.min(PT_low2[i][0])
             T_min = min(T_min, T_min_i)
 
-        T_min = np.floor(T_min/100)*100 - 200.0    # Round down to nearest 100
-            
+        T_min = np.floor(T_min / 100) * 100 - 200.0  # Round down to nearest 100
+
     # If the user did not specify a temperature range, find min and max from input models
     if (T_max == None):
-        
+
         T_max = 1e-10  # Dummy value
-        
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_PT):
-            
             T_max_i = np.max(PT_high2[i][0])
             T_max = max(T_max, T_max_i)
 
-        T_max = np.ceil(T_max/100)*100 + 200.0     # Round up to nearest 100
+        T_max = np.ceil(T_max / 100) * 100 + 200.0  # Round up to nearest 100
 
     # Find range to plot
     T_range = T_max - T_min
-    
+
     # Calculate appropriate axis spacing
     if (T_range >= 500.0):
-        major_spacing = max(np.around((T_range/10), -2), 100.0)
+        major_spacing = max(np.around((T_range / 10), -2), 100.0)
     elif (T_range < 500.0):
-        major_spacing = max(np.around((T_range/10), -1), 10.0)
-        
-    minor_spacing = major_spacing/10
+        major_spacing = max(np.around((T_range / 10), -1), 10.0)
+
+    minor_spacing = major_spacing / 10
 
     # Load pressure grid
     P = PT_median[0][1]
@@ -2622,46 +2756,46 @@ def plot_PT_retrieved(planet_name, PT_median, PT_low2, PT_low1, PT_high1,
         log_P_min = np.log10(np.min(P))
     if (log_P_max == None):
         log_P_max = np.log10(np.max(P))
-    
+
     # create figure
-    fig = plt.figure()  
+    fig = plt.figure()
     ax = plt.gca()
-    
+
     # Assign axis spacing
     xmajorLocator_PT = MultipleLocator(major_spacing)
     xminorLocator_PT = MultipleLocator(minor_spacing)
-        
+
     ax.xaxis.set_major_locator(xmajorLocator_PT)
     ax.xaxis.set_minor_locator(xminorLocator_PT)
-    
-    #***** Plot P-T profiles *****#
-    
+
+    # ***** Plot P-T profiles *****#
+
     # 1D temperature profile
     if (Atmosphere_dimension > 1):
-        raise Exception("This function does not currently support " + 
+        raise Exception("This function does not currently support " +
                         "multidimensional retrievals.")
-        
+
     else:
 
         # Loop over retrieved P-T profiles
         for i in range(N_PT):
-            
+
             # Extract temperature and pressure grid
             (T_med, P) = PT_median[i]
             (T_low1, P) = PT_low1[i]
             (T_low2, P) = PT_low2[i]
             (T_high1, P) = PT_high1[i]
             (T_high2, P) = PT_high2[i]
-            
+
             # If user did not specify a model label, just call them "Model 1, 2" etc.
             if (PT_labels == []):
                 if (N_PT == 1):
                     label_i = r'Retrieved P-T Profile'
                 else:
-                    label_i = r'Retrieved P-T Profile ' + str(i+1)
+                    label_i = r'Retrieved P-T Profile ' + str(i + 1)
             else:
                 label_i = PT_labels[i]
-            
+
             # Only add sigma intervals to legend for one model (avoids clutter)
             if (N_PT == 1):
                 label_med = label_i + r' (Median)'
@@ -2673,34 +2807,34 @@ def plot_PT_retrieved(planet_name, PT_median, PT_low2, PT_low1, PT_high1,
                 label_two_sig = ''
 
             # Plot median retrieved spectrum
-            ax.semilogy(T_med, P, lw = 1.5, color = scale_lightness(colours[i], 1.0), 
-                        label = label_med)
-            
+            ax.semilogy(T_med, P, lw=1.5, color=scale_lightness(colours[i], 1.0),
+                        label=label_med)
+
             # Plot +/- 1σ confidence region
-            ax.fill_betweenx(P, T_low1, T_high1, lw = 0.0, alpha = 0.5, 
-                            facecolor = colours[i], label = label_one_sig)
+            ax.fill_betweenx(P, T_low1, T_high1, lw=0.0, alpha=0.5,
+                             facecolor=colours[i], label=label_one_sig)
 
             # Plot +/- 2σ sigma confidence region
-            ax.fill_betweenx(P, T_low2, T_high2, lw = 0.0, alpha = 0.2, 
-                            facecolor = colours[i], label = label_two_sig)
+            ax.fill_betweenx(P, T_low2, T_high2, lw=0.0, alpha=0.2,
+                             facecolor=colours[i], label=label_two_sig)
 
         # Plot actual (true) P-T profile
         if (T_true != None):
-            ax.semilogy(T_true, P, lw = 1.5, color = 'crimson', label = 'True')
+            ax.semilogy(T_true, P, lw=1.5, color='crimson', label='True')
 
     # Common plot settings for all profiles
-    ax.invert_yaxis()            
-    ax.set_xlabel(r'Temperature (K)', fontsize = 20)
+    ax.invert_yaxis()
+    ax.set_xlabel(r'Temperature (K)', fontsize=20)
     ax.set_xlim(T_min, T_max)
-    ax.set_ylabel(r'Pressure (bar)', fontsize = 20)
-    ax.set_ylim(np.power(10.0, log_P_max), np.power(10.0, log_P_min)) 
+    ax.set_ylabel(r'Pressure (bar)', fontsize=20)
+    ax.set_ylim(np.power(10.0, log_P_max), np.power(10.0, log_P_min))
 
     ax.tick_params(labelsize=12)
-    
+
     # Add legend
-    legend = ax.legend(loc=legend_location, shadow=True, prop={'size':14}, ncol=1, 
+    legend = ax.legend(loc=legend_location, shadow=True, prop={'size': 14}, ncol=1,
                        frameon=False, columnspacing=1.0)
-    
+
     fig.set_size_inches(9.0, 9.0)
 
     # Write figure to file
@@ -2714,13 +2848,13 @@ def plot_PT_retrieved(planet_name, PT_median, PT_low2, PT_low1, PT_high1,
     return fig
 
 
-def plot_chem_retrieved(planet_name, chemical_species, log_Xs_median, 
-                        log_Xs_low2, log_Xs_low1, log_Xs_high1, log_Xs_high2, 
-                        log_X_true = None, plot_species = [], plot_two_sigma = False,
-                        Atmosphere_dimension = 1, TwoD_type = None, plt_label = None, 
-                        show_profiles = [], model_labels = [], colour_list = [],
-                        log_P_min = None, log_P_max = None, log_X_min = None, 
-                        log_X_max = None):
+def plot_chem_retrieved(planet_name, chemical_species, log_Xs_median,
+                        log_Xs_low2, log_Xs_low1, log_Xs_high1, log_Xs_high2,
+                        log_X_true=None, plot_species=[], plot_two_sigma=False,
+                        Atmosphere_dimension=1, TwoD_type=None, plt_label=None,
+                        show_profiles=[], model_labels=[], colour_list=[],
+                        log_P_min=None, log_P_max=None, log_X_min=None,
+                        log_X_max=None):
     '''
     Plot retrieved mixing ratio profiles.
     
@@ -2788,7 +2922,7 @@ def plot_chem_retrieved(planet_name, chemical_species, log_Xs_median,
             The retrieved mixing ratio profile plot.
 
     '''
-  
+
     # Find number of mixing ratio model profiles to plot
     N_chem = len(log_Xs_median)
 
@@ -2814,31 +2948,29 @@ def plot_chem_retrieved(planet_name, chemical_species, log_Xs_median,
             raise Exception(species + " not included in this model.")
 
     # Define colours for mixing ratio profiles (default or user choice)
-    if (colour_list == []):   # If user did not specify a custom colour list
-        colours = ['royalblue', 'darkgreen', 'magenta', 'crimson', 'darkgrey', 
+    if (colour_list == []):  # If user did not specify a custom colour list
+        colours = ['royalblue', 'darkgreen', 'magenta', 'crimson', 'darkgrey',
                    'black', 'darkorange', 'navy']
     else:
         colours = colour_list
 
     # If the user did not specify a mixing ratio range, find min and max from input models
     if (log_X_min == None):
-        
-        log_X_min = 0.0   # Dummy value
-        
+
+        log_X_min = 0.0  # Dummy value
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_chem):
-            
             log_X_min_i = np.min(log_Xs_low2[i][0])
             log_X_min = min(log_X_min, log_X_min_i)
-            
+
     # If the user did not specify a mixing ratio range, find min and max from input models
     if (log_X_max == None):
-        
+
         log_X_max = -50.0  # Dummy value
-        
+
         # Loop over each model, finding the most extreme min / max range 
         for i in range(N_chem):
-            
             log_X_max_i = np.max(log_Xs_high2[i][0])
             log_X_max = max(log_X_max, log_X_max_i)
 
@@ -2850,13 +2982,13 @@ def plot_chem_retrieved(planet_name, chemical_species, log_Xs_median,
     if (log_X_min == log_X_max):
         log_X_min = log_X_min - 1.0
         log_X_max = log_X_max + 1.0
-        
+
     # Find range to plot
-    log_X_range = log_X_max - log_X_min    
-    
+    log_X_range = log_X_max - log_X_min
+
     # Calculate appropriate axis spacing
     major_spacing = 1.0
-    minor_spacing = major_spacing/10
+    minor_spacing = major_spacing / 10
 
     # Load pressure grid
     P = log_Xs_median[0][1]
@@ -2865,33 +2997,33 @@ def plot_chem_retrieved(planet_name, chemical_species, log_Xs_median,
         log_P_min = np.log10(np.min(P))
     if (log_P_max == None):
         log_P_max = np.log10(np.max(P))
-    
+
     # Find LaTeX code for each chemical species to plot
     latex_species = generate_latex_param_names(plot_species)
-    
+
     # create figure
-    fig = plt.figure()  
+    fig = plt.figure()
     ax = plt.gca()
-    
+
     # Assign axis spacing
     xmajorLocator_X = MultipleLocator(major_spacing)
     xminorLocator_X = MultipleLocator(minor_spacing)
-        
+
     ax.xaxis.set_major_locator(xmajorLocator_X)
     ax.xaxis.set_minor_locator(xminorLocator_X)
-    
-    #***** Plot mixing ratio profiles *****#
-    
+
+    # ***** Plot mixing ratio profiles *****#
+
     # 1D temperature profile
     if (Atmosphere_dimension > 1):
-        raise Exception("This function does not currently support " + 
+        raise Exception("This function does not currently support " +
                         "multidimensional retrievals.")
-        
+
     else:
 
         # Loop over retrieved mixing ratio profile models
         for i in range(N_chem):
-            
+
             # Extract mixing ratio and pressure grid
             (log_X_med, P) = log_Xs_median[i]
             (log_X_low1, P) = log_Xs_low1[i]
@@ -2901,61 +3033,60 @@ def plot_chem_retrieved(planet_name, chemical_species, log_Xs_median,
 
             # Plot the profile for each species in turn
             for q, species in enumerate(plot_species):
- 
+
                 # If user did not specify a model label, just call them "Model 1, 2" etc.
                 if (model_labels == []):
                     if (N_chem == 1):
                         label_i = r'Retrieved ' + latex_species[q]
                     else:
-                        label_i = r'Retrieved ' + latex_species[q] + str(i+1)
+                        label_i = r'Retrieved ' + latex_species[q] + str(i + 1)
                 else:
                     label_i = latex_species[q] + ' ' + model_labels[i]
-            
+
                 # Don't add sigma intervals to legend (avoids clutter)
                 label_med = label_i
                 label_one_sig = ''
                 label_two_sig = ''
 
                 # Plot median retrieved mixing ratio profile
-                ax.semilogy(log_X_med[chemical_species == species,:][0], P, 
-                            lw = 1.5, color = colours[q],
-                            label = label_med)
+                ax.semilogy(log_X_med[chemical_species == species, :][0], P,
+                            lw=1.5, color=colours[q],
+                            label=label_med)
 
                 # Plot +/- 1σ confidence region
-                ax.fill_betweenx(P, log_X_low1[chemical_species == species,:][0], 
-                                 log_X_high1[chemical_species == species,:][0],
-                                 lw = 0.0, alpha = 0.4, facecolor = colours[q],
-                                 label = label_one_sig)
+                ax.fill_betweenx(P, log_X_low1[chemical_species == species, :][0],
+                                 log_X_high1[chemical_species == species, :][0],
+                                 lw=0.0, alpha=0.4, facecolor=colours[q],
+                                 label=label_one_sig)
 
                 # Plot +/- 2σ confidence region
                 if (plot_two_sigma == True):
-                    ax.fill_betweenx(P, log_X_low2[chemical_species == species,:][0], 
-                                    log_X_high2[chemical_species == species,:][0],
-                                    lw = 0.0, alpha = 0.2, facecolor = colours[q],
-                                    label = label_two_sig)
+                    ax.fill_betweenx(P, log_X_low2[chemical_species == species, :][0],
+                                     log_X_high2[chemical_species == species, :][0],
+                                     lw=0.0, alpha=0.2, facecolor=colours[q],
+                                     label=label_two_sig)
 
                 # Plot actual (true) mixing ratio profile
                 if (log_X_true != None):
-
-                    ax.semilogy(log_X_true[chemical_species == species,:][0], P, 
-                                lw = 1.5, color = colours[q], ls = linestyles['dashed'],
-                                label = r'True ' + latex_species[q])
+                    ax.semilogy(log_X_true[chemical_species == species, :][0], P,
+                                lw=1.5, color=colours[q], ls=linestyles['dashed'],
+                                label=r'True ' + latex_species[q])
 
     # Common plot settings for all profiles
-    ax.invert_yaxis()            
-    ax.set_xlabel(r'Mixing Ratios (log $X_{\rm{i}}$)', fontsize = 20)
-    ax.set_xlim(log_X_min, log_X_max)  
-    ax.set_ylabel(r'Pressure (bar)', fontsize = 20)
+    ax.invert_yaxis()
+    ax.set_xlabel(r'Mixing Ratios (log $X_{\rm{i}}$)', fontsize=20)
+    ax.set_xlim(log_X_min, log_X_max)
+    ax.set_ylabel(r'Pressure (bar)', fontsize=20)
     ax.set_ylim(np.power(10.0, log_P_max), np.power(10.0, log_P_min))
 
     ax.tick_params(labelsize=12)
-        
+
     # Add legend
-    legend = ax.legend(loc='upper right', shadow=True, prop={'size':14}, ncol=1,
+    legend = ax.legend(loc='upper right', shadow=True, prop={'size': 14}, ncol=1,
                        frameon=True, columnspacing=1.0)
     frame = legend.get_frame()
-    frame.set_facecolor('0.90') 
-    
+    frame.set_facecolor('0.90')
+
     fig.set_size_inches(9.0, 9.0)
 
     # Write figure to file
@@ -2969,8 +3100,8 @@ def plot_chem_retrieved(planet_name, chemical_species, log_Xs_median,
     return fig
 
 
-def plot_stellar_flux(flux, wl, wl_min = None, wl_max = None, flux_min = None,
-                      flux_max = None, flux_axis = 'linear', wl_axis = 'log'):
+def plot_stellar_flux(flux, wl, wl_min=None, wl_max=None, flux_min=None,
+                      flux_max=None, flux_axis='linear', wl_axis='log'):
     '''
     Straightforward function to plot an emergent stellar spectrum.
 
@@ -2997,9 +3128,9 @@ def plot_stellar_flux(flux, wl, wl_min = None, wl_max = None, flux_min = None,
             The simplest stellar flux plot you've ever seen.
 
     '''
-    
+
     # Initialise figure
-    fig = plt.figure()  
+    fig = plt.figure()
     ax = plt.gca()
 
     # Format axes
@@ -3011,8 +3142,8 @@ def plot_stellar_flux(flux, wl, wl_min = None, wl_max = None, flux_min = None,
     ax.plot(wl, flux, lw=1, alpha=0.8, label=r'Stellar Flux')
 
     # Add axis labels
-    ax.set_xlabel(r'Wavelength (μm)', fontsize = 16)
-    ax.set_ylabel(r'Surface Flux (W m$^{-2}$ m$^{-1}$)', fontsize = 16)
+    ax.set_xlabel(r'Wavelength (μm)', fontsize=16)
+    ax.set_ylabel(r'Surface Flux (W m$^{-2}$ m$^{-1}$)', fontsize=16)
 
     # Check if user has specified x and y ranges
     if (wl_min == None):
@@ -3022,42 +3153,40 @@ def plot_stellar_flux(flux, wl, wl_min = None, wl_max = None, flux_min = None,
     if (flux_min == None):
         flux_min = min(flux)
     if (flux_max == None):
-        flux_max = max(flux)   
+        flux_max = max(flux)
 
-    # Set x and y ranges
+        # Set x and y ranges
     ax.set_xlim([wl_min, wl_max])
     ax.set_ylim([flux_min, flux_max])
 
     # add legend
-    ax.legend(loc='upper right', shadow=True, prop={'size':10}, ncol=1, frameon=False)
-    
+    ax.legend(loc='upper right', shadow=True, prop={'size': 10}, ncol=1, frameon=False)
+
     return fig
 
 
 def plot_histogram(nbins, vals, colour, ax, shrink_factor, x_max_array):
-    
-  #  weights = np.ones_like(vals)/float(len(vals))
-    
+    #  weights = np.ones_like(vals)/float(len(vals))
+
     # Plot histogram
-    x,w,patches = ax.hist(vals, bins=nbins, color=colour, histtype='stepfilled', 
-                          alpha=0.4, edgecolor='None', density=True, stacked=True)
+    x, w, patches = ax.hist(vals, bins=nbins, color=colour, histtype='stepfilled',
+                            alpha=0.4, edgecolor='None', density=True, stacked=True)
 
     # Plot histogram border
-    x,w,patches = ax.hist(vals, bins=nbins, histtype='stepfilled', lw = 0.8, 
-                          facecolor='None', density=True, stacked=True)
-    
+    x, w, patches = ax.hist(vals, bins=nbins, histtype='stepfilled', lw=0.8,
+                            facecolor='None', density=True, stacked=True)
+
     x_max = np.max(x_max_array)
-        
-    ax.set_ylim(0, (1.1+shrink_factor)*x_max)
-    
+
+    ax.set_ylim(0, (1.1 + shrink_factor) * x_max)
+
     low3, low2, low1, median, high1, high2, high3 = confidence_intervals(len(vals), vals, 0)
-    
+
     return low3, low2, low1, median, high1, high2, high3
 
 
-def plot_parameter_panel(ax, param_vals, N_bins, param, 
+def plot_parameter_panel(ax, param_vals, N_bins, param,
                          param_min, param_max, colour, x_max_array):
-    
     # Plot histogram
     _, _, low1, median, high1, _, _ = plot_histogram(N_bins, param_vals, colour, ax, 0.0, x_max_array)
 
@@ -3068,26 +3197,25 @@ def plot_parameter_panel(ax, param_vals, N_bins, param,
 
     return low1, median, high1
 
-    
-def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_colour_list, 
-                              retrieval_colour_list, retrieval_labels, span, truths, 
-                              N_rows, N_columns, N_bins):
 
+def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_colour_list,
+                              retrieval_colour_list, retrieval_labels, span, truths,
+                              N_rows, N_columns, N_bins):
     N_params = len(plot_parameters)
     N_models = len(param_vals)
 
     # If user doesn't specify number of rows or columns, place 3 histograms on each row
     if ((N_rows == None) or (N_columns == None)):
         N_columns = 3
-        N_rows =  1 + (N_params - 1)//N_columns
+        N_rows = 1 + (N_params - 1) // N_columns
 
     # Initialise multi-panel grid
     fig = plt.figure()
 
     gs = gridspec.GridSpec(N_rows, N_columns)
 
-    fig.set_size_inches(2.5*N_columns, 2.5*N_rows)
-    
+    fig.set_size_inches(2.5 * N_columns, 2.5 * N_rows)
+
     # Latex code for parameter labels
     param_labels = generate_latex_param_names(plot_parameters)
 
@@ -3095,21 +3223,20 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
     if (span == []):
         span = [0.999999426697 for q in range(N_params)]
     span = list(span)
-    
-    #***** Generate panels *****#
-    
+
+    # ***** Generate panels *****#
+
     # For each species
     for q in range(len(plot_parameters)):
 
-
         param = plot_parameters[q]
         param_label = param_labels[q]
-        
+
         row_idx = q // N_columns
         column_idx = q - (row_idx * N_columns)
 
         if (axes_in == []):
-            ax = plt.subplot(gs[row_idx, column_idx:column_idx+1])
+            ax = plt.subplot(gs[row_idx, column_idx:column_idx + 1])
         else:
             ax = axes_in[q]
 
@@ -3121,58 +3248,57 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
         # Find the maximum x to set the y off of 
         x_max_array = []
         for m in range(N_models):
-            
+
             param_vals_m = param_vals[m]
-            
+
             if (N_models == 1):
-                colour = parameter_colour_list[q]   # Each species has a different colour
+                colour = parameter_colour_list[q]  # Each species has a different colour
             else:
-                colour = retrieval_colour_list[m]   # Each retrieval has a different colour
+                colour = retrieval_colour_list[m]  # Each retrieval has a different colour
 
             # Set minimum and maximum mixing ratio plot limits
             try:
                 param_min, param_max = span[q]
             except:
                 quant = [0.5 - 0.5 * span[q], 0.5 + 0.5 * span[q]]
-                span[q] = _quantile(param_vals_m[:,q], quant)
+                span[q] = _quantile(param_vals_m[:, q], quant)
                 param_min = span[q][0]
                 param_max = span[q][1]
 
-            x,w,patches = ax.hist(param_vals_m[:,q], bins=N_bins[q], color=colour, histtype='stepfilled', 
-                                alpha=0.4, edgecolor='None', density=True, stacked=True)
-            
-            
+            x, w, patches = ax.hist(param_vals_m[:, q], bins=N_bins[q], color=colour, histtype='stepfilled',
+                                    alpha=0.4, edgecolor='None', density=True, stacked=True)
+
             x_max_array.append(x.max())
 
         # For each retrieval
         for m in range(N_models):
 
             param_vals_m = param_vals[m]
-            
+
             if (N_models == 1):
-                colour = parameter_colour_list[q]   # Each species has a different colour
+                colour = parameter_colour_list[q]  # Each species has a different colour
             else:
-                colour = retrieval_colour_list[m]   # Each retrieval has a different colour
+                colour = retrieval_colour_list[m]  # Each retrieval has a different colour
 
             # Set minimum and maximum mixing ratio plot limits
             try:
                 param_min, param_max = span[q]
             except:
                 quant = [0.5 - 0.5 * span[q], 0.5 + 0.5 * span[q]]
-                span[q] = _quantile(param_vals_m[:,q], quant)
+                span[q] = _quantile(param_vals_m[:, q], quant)
                 param_min = span[q][0]
                 param_max = span[q][1]
 
             # Plot histogram
-            low1, median, high1 = plot_parameter_panel(ax, param_vals_m[:,q], N_bins[q], param,
-                                                       param_min, param_max, colour, x_max_array = x_max_array)
+            low1, median, high1 = plot_parameter_panel(ax, param_vals_m[:, q], N_bins[q], param,
+                                                       param_min, param_max, colour, x_max_array=x_max_array)
 
             # Add retrieval model labels to top left panel
             if ((row_idx == 0) and (column_idx == 0) and (retrieval_labels != [])):
-                ax.text(0.10, (0.94 - m*0.10), retrieval_labels[m], color=colour, 
-                        fontsize = 10, horizontalalignment='left', 
+                ax.text(0.10, (0.94 - m * 0.10), retrieval_labels[m], color=colour,
+                        fontsize=10, horizontalalignment='left',
                         verticalalignment='top', transform=ax.transAxes)
-                
+
             # Plot median and +/- 1σ confidence intervals
             if (m == 0):
                 ax.axvline(median, lw=2, ls="-", alpha=0.7, color='dimgray')
@@ -3183,26 +3309,26 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
             if (m == 0):
                 fmt = "{{0:{0}}}".format(title_fmt).format
                 title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
-                title = title.format(fmt(median), fmt((median-low1)), fmt((high1-median)))
+                title = title.format(fmt(median), fmt((median - low1)), fmt((high1 - median)))
                 title = "{0} = {1}".format(param_label, title)
                 title = "{0}".format(title)
                 # Change back to 12
-                ax.set_title(title, fontsize = 11)
+                ax.set_title(title, fontsize=11)
 
             # Create sub-axis for error bar
-      #      newax = plt.gcf().add_axes(ax.get_position(), sharex=ax, frameon=False)
-      #      newax.set_ylim(0, 1)
-        
-      #      ylim = newax.get_ylim()
-      #      y = ylim[0] + 0.06*(m+1)*(ylim[1] - ylim[0])
-   
-      #      newax.errorbar(x=median, y=y,
-      #                     xerr=np.transpose([[median - low1, high1 - median]]), 
-      #                     color='lightgreen', ecolor='green', markersize=3, 
-      #                     markeredgewidth = 0.6, linewidth=0.9, capthick=0.9,
-      #                     capsize=1.7, marker='s')
+            #      newax = plt.gcf().add_axes(ax.get_position(), sharex=ax, frameon=False)
+            #      newax.set_ylim(0, 1)
 
-      #      newax.tick_params(axis='both', which='major', labelsize=8)
+            #      ylim = newax.get_ylim()
+            #      y = ylim[0] + 0.06*(m+1)*(ylim[1] - ylim[0])
+
+            #      newax.errorbar(x=median, y=y,
+            #                     xerr=np.transpose([[median - low1, high1 - median]]),
+            #                     color='lightgreen', ecolor='green', markersize=3,
+            #                     markeredgewidth = 0.6, linewidth=0.9, capthick=0.9,
+            #                     capsize=1.7, marker='s')
+
+            #      newax.tick_params(axis='both', which='major', labelsize=8)
 
             ax.set_yticks([])
             # CHANGE THIS BACK TO LABEL SIZE 8
@@ -3210,7 +3336,7 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
 
             if (param == 'T'):
                 xmajorLocator = MultipleLocator(250)
-                xminorLocator = MultipleLocator(250/2)
+                xminorLocator = MultipleLocator(250 / 2)
                 ax.xaxis.set_major_locator(xmajorLocator)
                 ax.xaxis.set_minor_locator(xminorLocator)
 
@@ -3226,33 +3352,32 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
                 ax.xaxis.set_major_locator(xmajorLocator)
                 ax.xaxis.set_minor_locator(xminorLocator)
 
-
         # Overplot true value
         if (truths != []):
             ax.axvline(x=truths[q], linewidth=1.5, linestyle='-', color='crimson', alpha=0.8)
 
         # Add parameter label
-      #  ax.text(0.06, 0.94, param_label, color=colour, 
-      #          fontsize = 10, horizontalalignment='left', 
-      #          verticalalignment='top', transform=ax.transAxes)
+    #  ax.text(0.06, 0.94, param_label, color=colour,
+    #          fontsize = 10, horizontalalignment='left',
+    #          verticalalignment='top', transform=ax.transAxes)
 
-        # Add x-axis label
-     #   ax.set_xlabel(param_label, fontsize = 16)
-       
-        # For first column add y label
-     #   if (column_idx == 0):
-     #       ax.set_ylabel(r'Probability density (normalized)', fontsize = 9, labelpad = 10)
+    # Add x-axis label
+    #   ax.set_xlabel(param_label, fontsize = 16)
+
+    # For first column add y label
+    #   if (column_idx == 0):
+    #       ax.set_ylabel(r'Probability density (normalized)', fontsize = 9, labelpad = 10)
 
     return fig
-    
+
 
 def plot_histograms(planet_name, models, plot_parameters,
-                    parameter_colour_list = [], retrieval_colour_list = [], 
-                    retrieval_labels = [], span = [], truths = [], N_bins = [], 
-                    He_fraction = 0.17, N_rows = None, N_columns = None, 
-                    axes = [], retrieval_codes = [], external_samples = [],
-                    external_param_names = [], plt_label = None, 
-                    save_fig = True):
+                    parameter_colour_list=[], retrieval_colour_list=[],
+                    retrieval_labels=[], span=[], truths=[], N_bins=[],
+                    He_fraction=0.17, N_rows=None, N_columns=None,
+                    axes=[], retrieval_codes=[], external_samples=[],
+                    external_param_names=[], plt_label=None,
+                    save_fig=True):
     '''
     Plot a set of histograms from one or more retrievals.
 
@@ -3272,7 +3397,7 @@ def plot_histograms(planet_name, models, plot_parameters,
     elif (N_models == 1) and (parameter_colour_list != []):
         if (plot_parameters != []):
             if (len(parameter_colour_list) != len(plot_parameters)):
-                raise Exception("Number of parameter colours does not match the " + 
+                raise Exception("Number of parameter colours does not match the " +
                                 "requested number of parameters to plot.")
     elif (N_models >= 2) and (retrieval_colour_list == []):
         retrieval_colour_list = ['purple', 'dodgerblue', 'forestgreen']
@@ -3280,8 +3405,8 @@ def plot_histograms(planet_name, models, plot_parameters,
         if (len(retrieval_colour_list) != N_models):
             raise Exception("Number of retrieval colours does not match the " +
                             "number of retrieval models.")
-        
-    param_vals = []    # List to store parameter values for all models, samples, and parameters
+
+    param_vals = []  # List to store parameter values for all models, samples, and parameters
 
     # For each retrieval
     for m in range(N_models):
@@ -3305,7 +3430,7 @@ def plot_histograms(planet_name, models, plot_parameters,
 
             # Identify output directory location
             output_dir = './POSEIDON_output/' + planet_name + '/retrievals/'
-                
+
             # Identify directory location where the plot will be saved
             plot_dir = './POSEIDON_output/' + planet_name + '/plots/'
 
@@ -3314,64 +3439,64 @@ def plot_histograms(planet_name, models, plot_parameters,
 
             # Change directory into MultiNest result file folder
             os.chdir(output_dir + 'MultiNest_raw/')
-            
+
             # Run PyMultiNest analyser to extract posterior samples
-            analyzer = pymultinest.Analyzer(N_params, outputfiles_basename = output_prefix,
-                                            verbose = False)
-            samples = analyzer.get_equal_weighted_posterior()[:,:-1]
+            analyzer = pymultinest.Analyzer(N_params, outputfiles_basename=output_prefix,
+                                            verbose=False)
+            samples = analyzer.get_equal_weighted_posterior()[:, :-1]
 
             # Change directory back to directory where user's python script is located
             os.chdir('../../../../')
 
             # Find total number of available posterior samples from MultiNest 
-            N_samples = len(samples[:,0])
-        #   N_species_param = len(param_species)
+            N_samples = len(samples[:, 0])
+            #   N_species_param = len(param_species)
 
             # REPLACE BELOW WITH LOADING ATMOSPHERE OBJECT TO COMPUTE X AND
             # ELEMENTAL RATIOS EVERYWHERE
 
             if (Atmosphere_dimension > 1):
                 print("Note: this function is not currently configured for bulk gas " +
-                        "mixing ratios or element ratios for multidimensional retrievals")
+                      "mixing ratios or element ratios for multidimensional retrievals")
 
             # Create array to store the composition of the atmosphere  
             # log_X_stored = np.zeros(shape=(N_samples, N_species))
             # CLoad mixing ratios for atmosphere
-            #for i in range(N_samples):
+            # for i in range(N_samples):
 
-             #   if ('H2' and 'He' in bulk_species):
+            #   if ('H2' and 'He' in bulk_species):
 
-                    # Extract mixing ratios from MultiNest samples
-                    #_, _, log_X_stored[i,2:], _, _, _, _, _ = split_params(samples[i], 
-                    #                                                        N_params_cum)
+            # Extract mixing ratios from MultiNest samples
+            # _, _, log_X_stored[i,2:], _, _, _, _, _ = split_params(samples[i],
+            #                                                        N_params_cum)
 
-                    # Add H2 and He mixing ratios
-                    #X_H2 = (1.0 - np.sum(np.power(10.0, log_X_stored[i,2:])))/(1.0 + He_fraction)
-                    #X_He = He_fraction*X_H2
+            # Add H2 and He mixing ratios
+            # X_H2 = (1.0 - np.sum(np.power(10.0, log_X_stored[i,2:])))/(1.0 + He_fraction)
+            # X_He = He_fraction*X_H2
 
-                    #log_X_stored[i,0] = np.log10(X_H2)
-                    #log_X_stored[i,1] = np.log10(X_He)                                   
+            # log_X_stored[i,0] = np.log10(X_H2)
+            # log_X_stored[i,1] = np.log10(X_He)
 
-                #else:
+            # else:
 
-                    # Extract mixing ratios from MultiNest samples
-                 #   _, _, log_X_stored[i,1:], _, _, _, _, _ = split_params(samples[i], 
-                 #                                                           N_params_cum)
+            # Extract mixing ratios from MultiNest samples
+            #   _, _, log_X_stored[i,1:], _, _, _, _, _ = split_params(samples[i],
+            #                                                           N_params_cum)
 
-                    # Add bulk mixing ratio
-                 #   X_0 = 1.0 - np.sum(np.power(10.0, log_X_stored[i,1:]), axis=0)
-                  #  log_X_stored[i,0] = np.log10(X_0)
+            # Add bulk mixing ratio
+            #   X_0 = 1.0 - np.sum(np.power(10.0, log_X_stored[i,1:]), axis=0)
+            #  log_X_stored[i,0] = np.log10(X_0)
 
         # Or load samples in directly from external code
         else:
 
             param_names = np.array(external_param_names[m])
             samples = external_samples[m]
-            N_samples = len(samples[:,0])
+            N_samples = len(samples[:, 0])
 
         # Create array to store parameter values for model m
         param_samples_m = np.zeros(shape=(N_samples, N_params))
-        
+
         for q in range(N_params):
 
             param = plot_parameters[q]
@@ -3380,22 +3505,21 @@ def plot_histograms(planet_name, models, plot_parameters,
             if param == 'log_P_cloud_SiO2':
                 param = 'log_P_top_slab_SiO2'
 
-            param_samples_m[:,q] = samples[:,np.where(param_names == param)[0][0]]
-      #      for j in range(len(chemical_species)):
-      #          if (chemical_species[j] in param):
+            param_samples_m[:, q] = samples[:, np.where(param_names == param)[0][0]]
+        #      for j in range(len(chemical_species)):
+        #          if (chemical_species[j] in param):
 
+        #      if (param in X_param_names):
 
-      #      if (param in X_param_names):
-
-      #          parameter_samples_m[:,q] = log_X_stored[:,np.where(chemical_species == param)[0][0]]
+        #          parameter_samples_m[:,q] = log_X_stored[:,np.where(chemical_species == param)[0][0]]
 
         param_vals.append(param_samples_m)
 
-    fig = plot_retrieved_parameters(axes, param_vals, plot_parameters, 
-                                    parameter_colour_list, retrieval_colour_list, 
-                                    retrieval_labels, span, truths, 
+    fig = plot_retrieved_parameters(axes, param_vals, plot_parameters,
+                                    parameter_colour_list, retrieval_colour_list,
+                                    retrieval_labels, span, truths,
                                     N_rows, N_columns, N_bins)
-    
+
     # Save figure to file
     if (save_fig == True):
         if (plt_label == None):
@@ -3412,6 +3536,7 @@ def plot_histograms(planet_name, models, plot_parameters,
 Integration of below functions with plot_histograms pending.
 '''
 
+
 def elemental_ratio(all_species, X_vals, element_1, element_2):
     '''
     Helper function.
@@ -3427,14 +3552,14 @@ def elemental_ratio(all_species, X_vals, element_1, element_2):
     # Loop through atmosphere
     for i in range(N_samples):
 
-        element_1_abundance = 0.0   # First element in ratio
-        element_2_abundance = 0.0   # Second element in ratio
+        element_1_abundance = 0.0  # First element in ratio
+        element_2_abundance = 0.0  # Second element in ratio
 
-        for q in range(N_species): 
-            
+        for q in range(N_species):
+
             # Extract name and mixing ratio of molecule 'q'
-            molecule_q = all_species[q] 
-            X_q = X_vals[i,q]
+            molecule_q = all_species[q]
+            X_q = X_vals[i, q]
 
             # Count how many atoms of each element are in this molecule
             counts = count_atoms(molecule_q)
@@ -3455,10 +3580,8 @@ def elemental_ratio(all_species, X_vals, element_1, element_2):
 
 
 def plot_retrieved_element_ratios(X_vals, all_species, plot_ratios, colour_list,
-                                  retrieval_labels, span, truths, N_rows, 
-                                  N_columns, N_bins, abundance_fmt = '.2f'):
-
-
+                                  retrieval_labels, span, truths, N_rows,
+                                  N_columns, N_bins, abundance_fmt='.2f'):
     if (plot_ratios == []):
         plot_ratios = all_species
 
@@ -3469,39 +3592,37 @@ def plot_retrieved_element_ratios(X_vals, all_species, plot_ratios, colour_list,
     # If user doesn't specify number of rows or columns, place 3 histograms on each row
     if ((N_rows == None) or (N_columns == None)):
         N_columns = 3
-        N_rows =  1 + (N_ratios - 1)//N_columns
+        N_rows = 1 + (N_ratios - 1) // N_columns
 
     # Initialise multi-panel grid
     fig = plt.figure()
 
     gs = gridspec.GridSpec(N_rows, N_columns)
 
-    fig.set_size_inches(2.5*N_columns, 2.5*N_rows)
+    fig.set_size_inches(2.5 * N_columns, 2.5 * N_rows)
 
     # Determine histogram bounds (defaults to +/- 5σ)
     if (span == []):
         span = [0.999999426697 for q in range(N_ratios)]
     span = list(span)
 
-    
     # TBD: add these to species_data.py
-    solar_values = {'O/H': np.power(10.0, (8.69-12.0)), 
-                    'C/H': np.power(10.0, (8.43-12.0)),
-                    'N/H': np.power(10.0, (7.83-12.0))}
+    solar_values = {'O/H': np.power(10.0, (8.69 - 12.0)),
+                    'C/H': np.power(10.0, (8.43 - 12.0)),
+                    'N/H': np.power(10.0, (7.83 - 12.0))}
 
-   
-    #***** Generate panels *****#
-    
+    # ***** Generate panels *****#
+
     # For each elemental ratio
     for q in range(len(plot_ratios)):
 
         ratio = plot_ratios[q]
-        elements = ratio.split('/')   # Split ratio into constituent elements
+        elements = ratio.split('/')  # Split ratio into constituent elements
 
         row_idx = q // N_columns
         column_idx = q - (row_idx * N_columns)
 
-        ax = plt.subplot(gs[row_idx, column_idx:column_idx+1])
+        ax = plt.subplot(gs[row_idx, column_idx:column_idx + 1])
 
         # For each retrieval
         for m in range(len(X_vals)):
@@ -3514,11 +3635,11 @@ def plot_retrieved_element_ratios(X_vals, all_species, plot_ratios, colour_list,
 
             if (elements[1] == 'H'):
                 ratio_vals = ratio_vals / solar_values[ratio]
-            
+
             if (N_models == 1):
-                colour = colour_list[q]   # Each ratio has a different colour
+                colour = colour_list[q]  # Each ratio has a different colour
             else:
-                colour = colour_list[m]   # Each retrieval has a different colour
+                colour = colour_list[m]  # Each retrieval has a different colour
 
             # Set minimum and maximum mixing ratio plot limits
             try:
@@ -3532,69 +3653,68 @@ def plot_retrieved_element_ratios(X_vals, all_species, plot_ratios, colour_list,
                     span[q] = _quantile(ratio_vals, quant)
                 x_min = span[q][0]
                 x_max = span[q][1]
-        
+
             # Plot histogram
             if (elements[1] == 'H'):
                 low1, median, high1 = plot_parameter_panel(ax, np.log10(ratio_vals), ratio,
                                                            N_bins, x_min, x_max, colour)
             else:
-                low1, median, high1 = plot_parameter_panel(ax, ratio_vals, ratio, 
+                low1, median, high1 = plot_parameter_panel(ax, ratio_vals, ratio,
                                                            N_bins, x_min, x_max, colour)
 
-            print(0.5*((median-low1) + (high1 - median)))
+            print(0.5 * ((median - low1) + (high1 - median)))
 
             # Add retrieval model labels to top left panel
             if ((row_idx == 0) and (column_idx == 0) and (retrieval_labels != [])):
-                ax.text(0.10, (0.94 - m*0.10), retrieval_labels[m], color=colour, 
-                        fontsize = 12, horizontalalignment='left', 
+                ax.text(0.10, (0.94 - m * 0.10), retrieval_labels[m], color=colour,
+                        fontsize=12, horizontalalignment='left',
                         verticalalignment='top', transform=ax.transAxes)
 
             # Create sub-axis for error bar
             newax = plt.gcf().add_axes(ax.get_position(), sharex=ax, frameon=False)
             newax.set_ylim(0, 1)
-        
+
             ylim = newax.get_ylim()
-            y = ylim[0] + 0.06*(m+1)*(ylim[1] - ylim[0])
-   
+            y = ylim[0] + 0.06 * (m + 1) * (ylim[1] - ylim[0])
+
             newax.errorbar(x=median, y=y,
-                           xerr=np.transpose([[median - low1, high1 - median]]), 
-                           color='lightgreen', ecolor='green', markersize=3, 
-                           markeredgewidth = 0.6, linewidth=0.9, capthick=0.9,
+                           xerr=np.transpose([[median - low1, high1 - median]]),
+                           color='lightgreen', ecolor='green', markersize=3,
+                           markeredgewidth=0.6, linewidth=0.9, capthick=0.9,
                            capsize=1.7, marker='s')
 
             ax.set_yticks([])
             ax.tick_params(axis='both', which='major', labelsize=8)
             newax.tick_params(axis='both', which='major', labelsize=8)
-    
+
             # Hide y axis for all columns except the first one    
             if (column_idx != 0):
-                newax.set_yticklabels([])     # Remove y-axis tick marks
+                newax.set_yticklabels([])  # Remove y-axis tick marks
 
         # Overplot true value
         if (truths != []):
             ax.axvline(x=truths[q], linewidth=1.5, linestyle='-', color='crimson', alpha=0.8)
 
         # Add chemical species label
-        ax.text(0.06, 0.94, ratio, color=colour, 
-                fontsize = 10, horizontalalignment='left', 
+        ax.text(0.06, 0.94, ratio, color=colour,
+                fontsize=10, horizontalalignment='left',
                 verticalalignment='top', transform=ax.transAxes)
 
         # Add x-axis label
         if (elements[1] == 'H'):
-            ax.set_xlabel(r'$\log ($' + r'$\mathrm{' + ratio + r'}$' + r') ($\times \rm{solar})$', fontsize = 12)
+            ax.set_xlabel(r'$\log ($' + r'$\mathrm{' + ratio + r'}$' + r') ($\times \rm{solar})$', fontsize=12)
         else:
-            ax.set_xlabel(r'$\mathrm{' + ratio + r'}$', fontsize = 12)
-       
+            ax.set_xlabel(r'$\mathrm{' + ratio + r'}$', fontsize=12)
+
         # For first column add y label
         if (column_idx == 0):
-            ax.set_ylabel(r'Probability density (normalized)', fontsize = 9, labelpad = 20)
+            ax.set_ylabel(r'Probability density (normalized)', fontsize=9, labelpad=20)
 
     return fig
-            
-     #   fmt = "{{0:{0}}}".format(abundance_fmt).format
-     #   overlay = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
-     #   overlay = overlay.format(fmt(median), fmt((median-low1)), fmt((high1-median)))
 
-      #      newax.text(0.96, 0.96, overlay, color='navy', fontsize = 10,
-      #                 horizontalalignment='right', verticalalignment='top', transform=newax.transAxes)
+    #   fmt = "{{0:{0}}}".format(abundance_fmt).format
+    #   overlay = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+    #   overlay = overlay.format(fmt(median), fmt((median-low1)), fmt((high1-median)))
 
+    #      newax.text(0.96, 0.96, overlay, color='navy', fontsize = 10,
+    #                 horizontalalignment='right', verticalalignment='top', transform=newax.transAxes)

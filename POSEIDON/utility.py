@@ -424,6 +424,142 @@ def read_data(data_dir, fname, wl_unit = 'micron', bin_width = 'half',
     
     return wl_data, half_bin, spectrum, err
 
+
+def read_data_gmm(data_dir, fname, wl_unit='micron', bin_width='half', data_type=None,
+                  spectrum_unit='(Rp/Rs)^2', skiprows=None):
+    '''
+    Modified read data to take GMM transit depths
+    Added Args:
+        spectrum_type (str):
+                None: For normal datasets with Gaussian distributed symmetrical errors.
+                'GMM': for David's Gaussian Mixed Model (GMM) non uniform errors.
+                    GMM requires a y_up and y_low error
+
+    Read an external dataset file. The expected file format is:
+
+    wavelength | bin half width | spectrum | error on spectrum
+
+    Args:
+        data_dir (str):
+            Path to the directory containing the data file.
+        fname (str):
+            File name of data file.
+        wl_unit (str):
+            Unit of wavelength column (first column in file)
+            (Options: micron (or equivalent) / nm / A / m)
+        bin_width (str):
+            Whether bin width (second column) is half or full width
+            (Options: half / full).
+        spectrum_unit (str):
+            Unit of spectrum (third column) and spectrum errors (fourth column)
+            (Options: (Rp/Rs)^2 / Rp/Rs / Fp/Fs / Fp (or equivalent units)).
+        skiprows (int):
+            The number of rows to skip (e.g. use 1 if file has a header line).
+
+    Returns:
+        wl_data (np.array of float):
+            Bin centre wavelengths of data points (μm).
+        half_bin (np.array of float):
+            Bin half widths of data points (μm).
+        spectrum (np.array of float):
+            Transmission or emission spectrum dataset.
+        err (np.array of float):
+            1σ error bar on spectral data.
+
+    '''
+
+    # Load data file
+    if data_type != 'GMM':
+        data = pd.read_csv(data_dir + '/' + fname, sep='[\\s]{1,20}',
+                       header=None, skiprows=skiprows, engine='python')
+
+        # Load wavelength and half bin width, then convert both to μm
+        if (wl_unit in ['micron', 'um', 'μm']):
+            wl_data = np.array(data[0])
+            wl_bin = np.array(data[1])
+        elif (wl_unit == 'nm'):
+            wl_data = np.array(data[0]) * 1e-3
+            wl_bin = np.array(data[1]) * 1e-3
+        elif (wl_unit == 'A'):
+            wl_data = np.array(data[0]) * 1e-4
+            wl_bin = np.array(data[1]) * 1e-4
+        elif (wl_unit == 'm'):
+            wl_data = np.array(data[0]) * 1e6
+            wl_bin = np.array(data[1]) * 1e6
+        else:
+            raise Exception("Error: unrecognised wavelength unit when reading data.")
+
+    else:
+        # loading separately for GMM data
+        data = np.loadtxt(data_dir + '/' + fname, skiprows=skiprows)
+
+        # Load wavelength and half bin width, then convert both to μm
+        if (wl_unit in ['micron', 'um', 'μm']):
+            wl_data = data[:, 0]
+            wl_bin = data[:, 1]
+        elif (wl_unit == 'nm'):
+            wl_data = data[:, 0] * 1e-3
+            wl_bin = data[:, 1] * 1e-3
+        elif (wl_unit == 'A'):
+            wl_data = data[:, 0] * 1e-4
+            wl_bin = data[:, 1] * 1e-4
+        elif (wl_unit == 'm'):
+            wl_data = data[:, 0] * 1e6
+            wl_bin = data[:, 1] * 1e6
+        else:
+            raise Exception("Error: unrecognised wavelength unit when reading data.")
+
+
+
+    # Divide bin widths by 2 if the file contains full bin widths
+    if (bin_width == 'half'):
+        half_bin = wl_bin
+    elif (bin_width == 'full'):
+        half_bin = wl_bin / 2.0
+    else:
+        raise Exception("Error: unrecognised bin width unit when reading data.")
+
+    # Load spectrum and errors (converting to transit depth if Rp/Rs provided).
+    if data_type == 'GMM':
+        if (spectrum_unit in ['(Rp/Rs)^2', '(Rp/R*)^2',
+                              'transit_depth', 'eclipse_depth',
+                              'Fp/Fs', 'Fp/F*', 'Fp']):
+            spectra = data[:, 2::2].T
+            errors = data[:, 3::2].T
+        elif (spectrum_unit == 'ppm'):
+            spectra = data[:, 2::2].T * 1e-6
+            errors = data[:, 3::2].T * 1e-6
+        elif (spectrum_unit in ['%', 'percent']):
+            spectra = data[:, 2::2].T * 1e-2
+            errors = data[:, 3::2].T * 1e-2
+        elif (spectrum_unit in ['Rp/Rs', 'Rp/R*']):
+            spectra = data[:, 2::2].T ** 2
+            errors = (2.0 * (data[:, 3::2] / data[:, 2:2])) * spectra  # Error propagation for Rp/Rs -> (Rp/Rs)^2
+        else:
+            raise Exception("Error: unrecognised spectrum unit when reading file.")
+
+        return wl_data, half_bin, spectra, errors
+
+    else:
+        if (spectrum_unit in ['(Rp/Rs)^2', '(Rp/R*)^2',
+                              'transit_depth', 'eclipse_depth',
+                              'Fp/Fs', 'Fp/F*', 'Fp']):
+            spectrum = np.array(data[2])
+            err = np.array(data[3])
+        elif (spectrum_unit == 'ppm'):
+            spectrum = np.array(data[2]) * 1e-6
+            err = np.array(data[3]) * 1e-6
+        elif (spectrum_unit in ['%', 'percent']):
+            spectrum = np.array(data[2]) * 1e-2
+            err = np.array(data[3]) * 1e-2
+        elif (spectrum_unit in ['Rp/Rs', 'Rp/R*']):
+            spectrum = (np.array(data[2])) ** 2
+            err = (2.0 * (np.array(data[3]) / np.array(data[2]))) * spectrum  # Error propagation for Rp/Rs -> (Rp/Rs)^2
+        else:
+            raise Exception("Error: unrecognised spectrum unit when reading file.")
+
+        return wl_data, half_bin, spectrum, err
+
     
 def read_spectrum(planet_name, fname, wl_unit = 'micron'):
     '''
@@ -1569,6 +1705,190 @@ def write_summary_file(results_prefix, planet_name, retrieval_name,
 
     # Commit the lines array to file
     summary_file.writelines(lines)
+
+
+def write_summary_file(results_prefix, planet_name, retrieval_name,
+                       sampling_algorithm, n_params, N_live, ev_tol, param_names,
+                       stats, ln_Z, ln_Z_err, reduced_chi_square, chi_square,
+                       dof, best_fit_params, wl, R, instruments, datasets,
+                       radius_unit):
+    '''
+    Write a file summarising the main results from a POSEIDON retrieval.
+
+    Contains the key model stats (Bayesian evidence and best-fitting chi^2)
+    and the +/- 1, 2, 3, and 5 sigma constraints, alongside other helpful
+    information for future reference.
+
+    '''
+
+    # Specify location where results file will be saved
+    summary_file = open(results_prefix + '_results.txt', 'w')
+
+    # Define fixed properties for file
+    stats_formatter = '{:.2f}'  # String formatter for evidence and chi-square
+    max_param_len = len(max(param_names, key=len))  # Used to align '=' signs for parameters
+
+    if (R is not None):
+        wl_grid_description = ('R = ' + str(R))
+    else:
+        wl_grid_description = (str(len(wl)) + ' wavelength points')
+
+    # Start populating lines of results file
+    lines = ['Ψ*************************************Ψ\n',
+             'Ψ#####################################Ψ\n',
+             'Ψ#####                           #####Ψ\n',
+             'Ψ##### POSEIDON Retrieval Output #####Ψ\n',
+             'Ψ#####                           #####Ψ\n',
+             'Ψ#####################################Ψ\n',
+             'Ψ*************************************Ψ\n',
+             '\n',
+             '#################################\n',
+             '\n',
+             'PLANET: ' + planet_name + '\n',
+             '\n',
+             'Model: ' + retrieval_name + '\n',
+             '\n',
+             '#################################\n',
+             '\n',
+             'Model wavelength range:\n',
+             '\n',
+             '-> ' + str(wl[0]) + ' - ' + str(wl[-1]) + ' um @ ' + wl_grid_description + '\n',
+             '\n',
+             '#################################\n',
+             '\n',
+             'Datasets:\n',
+             '\n']
+
+    # Write datasets and instruments used in retrieval
+    for i in range(len(datasets)):
+        lines += ['-> ' + instruments[i] + ' (' + datasets[i] + ')\n']
+
+    # Add model stats
+    lines += ['\n',
+              '#################################\n',
+              '\n',
+              'Algorithm = ' + sampling_algorithm + '\n',
+              'N_params = ' + str(n_params) + '\n',
+              'N_live = ' + str(N_live) + '\n',
+              'evidence_tol = ' + str(ev_tol) + '\n',
+              '\n',
+              '#################################\n',
+              '\n',
+              'Model Bayesian evidence:\n',
+              '\n',
+              '-> ln Z = ' + stats_formatter.format(ln_Z) + ' +/- ' + stats_formatter.format(ln_Z_err) + '\n',
+              '\n',
+              '#################################\n']
+
+    # Add chi^2 statistics
+    # need to apply gmm to chisq so for now, removed.
+    # if (np.isnan(reduced_chi_square) == False):
+    #     lines += ['\n',
+    #               'Best reduced chi-square:\n',
+    #               '\n',
+    #               '-> chi^2_red = ' + stats_formatter.format(reduced_chi_square) + '\n',
+    #               '-> degrees of freedom = ' + str(dof) + '\n',
+    #               '-> chi^2 = ' + stats_formatter.format(chi_square) + '\n',
+    #               '\n',
+    #               '#################################\n']
+    # else:
+    #     lines += ['\n',
+    #               'Reduced chi-square undefined because N_params >= N_data!\n',
+    #               '\n',
+    #               '-> chi^2_red = Undefined\n',
+    #               '-> degrees of freedom = Undefined\n',
+    #               '-> chi^2 = ' + stats_formatter.format(chi_square) + '\n',
+    #               '\n',
+    #               '#################################\n']
+
+    # Add retrieved parameter constraints
+    lines += ['\n',
+              '******************************************\n',
+              '1 σ constraints\n',
+              '******************************************\n',
+              '\n']
+
+    # Write 1 sigma parameter constraints
+    for i, param in enumerate(param_names):
+        sig_m, centre, \
+            sig_p, formatter, unit = return_quantiles(stats, param, i, radius_unit,
+                                                      quantile='1 sigma')
+
+        lines += [
+            param + ' ' * (max_param_len + 1 - len(param)) + '=   ' +  # Handles number of spaces before equal sign
+            formatter.format(centre) + ' (+' + formatter.format(sig_p) +
+            ') (-' + formatter.format(sig_m) + ') ' + unit + '\n']
+
+    lines += ['\n',
+              '******************************************\n',
+              '2 σ constraints\n',
+              '******************************************\n',
+              '\n']
+
+    # Write 2 sigma parameter constraints
+    for i, param in enumerate(param_names):
+        sig_m, centre, \
+            sig_p, formatter, unit = return_quantiles(stats, param, i, radius_unit,
+                                                      quantile='2 sigma')
+
+        lines += [
+            param + ' ' * (max_param_len + 1 - len(param)) + '=   ' +  # Handles number of spaces before equal sign
+            formatter.format(centre) + ' (+' + formatter.format(sig_p) +
+            ') (-' + formatter.format(sig_m) + ') ' + unit + '\n']
+
+    lines += ['\n',
+              '******************************************\n',
+              '3 σ constraints\n',
+              '******************************************\n',
+              '\n']
+
+    # Write 3 sigma parameter constraints
+    for i, param in enumerate(param_names):
+        sig_m, centre, \
+            sig_p, formatter, unit = return_quantiles(stats, param, i, radius_unit,
+                                                      quantile='3 sigma')
+
+        lines += [
+            param + ' ' * (max_param_len + 1 - len(param)) + '=   ' +  # Handles number of spaces before equal sign
+            formatter.format(centre) + ' (+' + formatter.format(sig_p) +
+            ') (-' + formatter.format(sig_m) + ') ' + unit + '\n']
+
+    lines += ['\n',
+              '******************************************\n',
+              '5 σ constraints\n',
+              '******************************************\n',
+              '\n']
+
+    # Write 5 sigma parameter constraints
+    for i, param in enumerate(param_names):
+        sig_m, centre, \
+            sig_p, formatter, unit = return_quantiles(stats, param, i, radius_unit,
+                                                      quantile='5 sigma')
+
+        lines += [
+            param + ' ' * (max_param_len + 1 - len(param)) + '=   ' +  # Handles number of spaces before equal sign
+            formatter.format(centre) + ' (+' + formatter.format(sig_p) +
+            ') (-' + formatter.format(sig_m) + ') ' + unit + '\n']
+
+    # Add best-fitting model parameters
+    lines += ['\n',
+              '******************************************\n',
+              'Best-fitting parameters\n',
+              '******************************************\n',
+              '\n']
+
+    # Write best-fitting parameter values
+    for i, param in enumerate(param_names):
+        _, _, _, \
+            formatter, unit = return_quantiles(stats, param, i,
+                                               radius_unit)  # We only need the formatter and unit for the best fit parameters
+
+        lines += [
+            param + ' ' * (max_param_len + 1 - len(param)) + '=   ' +  # Handles number of spaces before equal sign
+            formatter.format(best_fit_params[i]) + ' ' + unit + '\n']
+
+    # Commit the lines array to file
+    summary_file.writelines(lines)
     
     
 def write_MultiNest_results(planet, model, data, retrieval_name,
@@ -1643,4 +1963,100 @@ def mock_missing(name):
             f'The module {name} you tried to call is not importable; '
             f'this is likely due to it not being installed.')
     return type(name, (), {'__init__': init})
+
+def write_MultiNest_results_gmm(planet, model, data, retrieval_name,
+                            N_live, ev_tol, sampling_algorithm, wl, R, data_type=None):
+    '''
+    Process raw retrieval output into human readable output files.
+
+    '''
+
+    # Unpack planet name
+    planet_name = planet['planet_name']
+
+    # Unpack number of free parameters
+    param_names = model['param_names']
+    n_params = len(param_names)
+
+    # Unpack data properties
+    if data_type != 'GMM':
+        err_data = data['err_data']
+        ydata = data['ydata']
+    else:
+        errors = data['err_data']
+        spectra = data['ydata']
+        # ydata currently only used for length. Therefore, at least for now, y_data = y_data_1
+        ydata = spectra[0]
+
+    instruments = data['instruments']
+    datasets = data['datasets']
+
+    # Unpack model properties
+    radius_unit = model['radius_unit']
+
+    # Load relevant output directory
+    output_prefix = retrieval_name + '-'
+
+    # Run PyMultiNest analyser to extract posterior samples and model evidence
+    analyzer = pymultinest.Analyzer(n_params, outputfiles_basename=output_prefix,
+                                    verbose=False)
+    stats = analyzer.get_stats()
+    best_fit = analyzer.get_best_fit()
+    samples = analyzer.get_equal_weighted_posterior()[:, :-1]
+
+    # Store model evidence
+    ln_Z = stats['nested sampling global log-evidence']
+    ln_Z_err = stats['nested sampling global log-evidence error']
+
+    # Store best-fitting reduced chi-squared
+    max_likelihood = best_fit['log_likelihood']
+    print('Max Likelihood = ', max_likelihood)
+    best_fit_params = best_fit['parameters']
+    if data_type != 'GMM':
+        norm_log = (-0.5 * np.log(2.0 * np.pi * err_data * err_data)).sum()
+        best_chi_square = -2.0 * (max_likelihood - norm_log)
+    else:
+        # # check this is right
+        # transit_depths = data['ydata']
+        # transit_depth_errors = data['err_data']
+        # wvs = data['wl_data']
+        # # precompute likelihood constants for GMM data
+        # S = 1
+        # N = len(wvs)
+        # M = transit_depths.shape[0]
+        # ln_weights = np.log(np.ones(M) / M)
+        # ln_a = -0.5 * S * N * np.log(2. * np.pi)
+        # ln_b = -0.5 * S * np.sum(np.log(transit_depth_errors ** 2), axis=1)
+        # ln_const = ln_a + ln_b + ln_weights
+        # best_chi_square = -2.0 * (max_likelihood - ln_const)
+        pass
+
+    # Check for N_params >= N_data, for which chi^2_r is undefined
+    if data_type != 'GMM':
+        if ((len(ydata) - n_params) > 0):
+            dof = (len(ydata) - n_params)
+            reduced_chi_square = best_chi_square / dof
+        else:
+            dof = np.nan
+            reduced_chi_square = np.nan
+    else:
+        # placeholder best chisq
+        reduced_chi_square = 0
+        best_chi_square = 0
+        dof = len(ydata) - n_params
+
+
+    # Load relevant results directories
+    samples_prefix = '../samples/' + retrieval_name
+    results_prefix = '../results/' + retrieval_name
+
+    # Write samples to file
+    write_samples_file(samples, param_names, n_params, samples_prefix)
+
+    # Write POSEIDON retrieval summary file
+    write_summary_file(results_prefix, planet_name, retrieval_name,
+                       sampling_algorithm, n_params, N_live, ev_tol, param_names,
+                       stats, ln_Z, ln_Z_err, reduced_chi_square, best_chi_square,
+                       dof, best_fit_params, wl, R, instruments, datasets,
+                       radius_unit)
 

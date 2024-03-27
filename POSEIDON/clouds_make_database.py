@@ -518,7 +518,7 @@ def precompute_cross_sections_one_aerosol(file_name, aerosol_name):
 
         counter += 1
 
-    title = input_file_path + 'opacity/refractive_indices/sigma_Mie_' + aerosol_name
+    title = input_file_path + '/opacity/refractive_indices/sigma_Mie_' + aerosol_name
     np.save(title,effective_cross_section_array,allow_pickle = True)
     all_etas = []
     all_xs = []
@@ -630,7 +630,7 @@ def make_aerosol_database():
                         "POSEIDON input folder.")
 
     # Load in the aerosol list
-    mydir = input_file_path + "opacity/refractive_indices/"
+    mydir = input_file_path + "/opacity/refractive_indices/"
     file_list = glob.glob(mydir + "sigma*.npy")
 
     print('---------------------')
@@ -666,7 +666,7 @@ def make_aerosol_database():
         aerosols_dict[aerosol_list[i]] = sigma_Mie
 
     # Initialize and generate new data_base 
-    database = h5py.File(input_file_path + 'opacity/aerosol_database.hdf5', 'w')
+    database = h5py.File(input_file_path + '/opacity/aerosol_database.hdf5', 'w')
 
     h = database.create_group('Info')
     h1 = h.create_dataset('Wavelength grid', data=wavelengths, compression='gzip', dtype='float64', shuffle=True)
@@ -687,7 +687,7 @@ def make_aerosol_database():
 
     print('---------------------')
     print('Saving new aerosol database as')
-    print(input_file_path + 'opacity/aerosol_database.hdf5')
+    print(input_file_path + '/opacity/aerosol_database.hdf5')
     print('---------------------')
 
     database.close()

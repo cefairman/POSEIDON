@@ -668,6 +668,11 @@ def assign_free_params(param_species, object_type, PT_profile, X_profile,
     if (offsets_applied == 'single_dataset'):
         params += ['delta_rel']
         N_offset_params = 1
+    elif (offsets_applied) == 'two_datasets':
+        print('offsets: two_datasets, in assign_free_params')
+        params += ['delta_rel_1']
+        params += ['delta_rel_2']
+        N_offset_params = 2
     elif (offsets_applied == None):
         N_offset_params = 0
     else:
