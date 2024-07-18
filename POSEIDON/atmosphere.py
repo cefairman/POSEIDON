@@ -1568,6 +1568,5 @@ def profiles(P, R_p, g_0, PT_profile, X_profile, PT_state, P_ref, R_p_ref,
                                                 R_p_ref, mu, N_sectors, N_zones)
         
 
-    print('X array:', X)
     return T, n, r, r_up, r_low, dr, mu, X, X_active, X_CIA, \
            X_ff, X_bf, True

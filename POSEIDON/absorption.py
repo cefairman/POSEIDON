@@ -1168,9 +1168,9 @@ def extinction_gcm(chemical_species, active_species, cia_pairs, ff_pairs, bf_spe
         sector, and wavelength.
 
     '''
-    print('in extinction_gcm:')
-    print('n = ', n)
-    print('T = ', T)
+    # print('in extinction_gcm:')
+    # print('n = ', n)
+    # print('T = ', T)
 
     # Store length variables for mixing ratio arrays
     N_species = len(chemical_species)  # Number of chemical species

@@ -2387,6 +2387,9 @@ def Mie_cloud_free(P, wl, wl_Mie_in, r, H, n, r_m, r_i_real, r_i_complex, cloud_
 def precompute_cross_sections_one_aerosol(file_name, aerosol_name):
 
     '''
+    @char:remove rm_st_dev from function input later - and change back first lines of function
+
+
     Calculates the .npy file from a refractive index txt file (lab data)
     Takes ~ a day to generate the npy file that then can be easily added to the aerosol database  
     Please ensure that the first two rows are skippable, and that the columns are 
@@ -2405,7 +2408,7 @@ def precompute_cross_sections_one_aerosol(file_name, aerosol_name):
     global all_etas, all_xs, all_Qexts, all_Qscats, all_Qbacks, all_gs
 
     # Constants for the Qext Calculation
-    r_m_std_dev = 0.5
+    rm_st_dev = 0.5
     z_max = 5
     num_integral_points = 100
     R_Mie = 1000
@@ -2672,9 +2675,11 @@ def precompute_cross_sections_one_aerosol(file_name, aerosol_name):
     print('Remember to update aerosol_supported_species in supported_opac.py!')
 
 # Allows the user to make one set of cross sections from an input array of imaginary and real indices 
-def precompute_cross_sections_from_indices(wl,real_indices_array,imaginary_indices_array, r_m):
+def precompute_cross_sections_from_indices(wl,real_indices_array,imaginary_indices_array, r_m, set_r_m_st_dev = None):
 
     '''
+    @char:remove rm_st_dev from function input later - and change back first lines of function
+
     Calculates and returns the effective cross section from an input wl grid, real and imaginary indices array 
     And the particle size in um 
 
@@ -2697,7 +2702,13 @@ def precompute_cross_sections_from_indices(wl,real_indices_array,imaginary_indic
     global all_etas, all_xs, all_Qexts, all_Qscats, all_Qbacks, all_gs
 
     # Constants that for the Qext Claculation
-    r_m_std_dev = 0.5
+
+    # pineapple
+    # @char: added ability to change r_m_std_dev
+    if set_r_m_st_dev == None:
+        r_m_std_dev = 0.5
+    else:
+        r_m_std_dev = set_r_m_st_dev
     z_max = 5
     num_integral_points = 100
 

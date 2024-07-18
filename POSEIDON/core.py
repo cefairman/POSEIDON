@@ -55,7 +55,7 @@ from .atmosphere import mixing_ratio_categories
 from .species_data import masses
 from .atmosphere import compute_mean_mol_mass
 from .absorption import extinction_gcm
-from .transmission import TRIDENT_gcm
+from .transmission import TRIDENT_gcm, TRIDENT_gcm_split
 
 try:
     import cupy as cp
@@ -265,6 +265,7 @@ def create_star(R_s, T_eff, log_g, Met, T_eff_error=100.0, log_g_error=0.1,
             }
 
     return star
+
 
 
 def create_planet(planet_name, R_p, mass=None, gravity=None,
@@ -1346,7 +1347,7 @@ def make_atmosphere_gcm(planet, model, P, P_ref, R_p_ref,
     # @char: dealing with undefined mixing ratio values
     # Replace any nans with 0 in the X_param array
     X_param[np.isnan(X_param)] = 0
-    print('In make atmosphere: X_param = ', X_param)
+    # print('In make atmosphere: X_param = ', X_param)
 
     # Checks for validity of user inputs
     # @char: have removed these checks - aren't useful for our purposes
@@ -4568,10 +4569,10 @@ def compute_spectrum_gcm(planet, star, model, atmosphere, opac, wl,
             raise Exception("GPU transmission spectra not yet supported.")
 
         # Call the core TRIDENT routine to compute the transmission spectrum
-        print('b_p = {}'.format(b_p))
-        print('y_p[0] = {}'.format(y_p[0]))
-        print('R_s = {}'.format(R_s))
-        spectrum = TRIDENT_gcm(P, r, r_up, r_low, dr, wl, (kappa_gas + kappa_Ray), kappa_cloud,
+        # print('b_p = {}'.format(b_p))
+        # print('y_p[0] = {}'.format(y_p[0]))
+        # print('R_s = {}'.format(R_s))
+        spectrum = TRIDENT_gcm_split(P, r, r_up, r_low, dr, wl, (kappa_gas + kappa_Ray), kappa_cloud,
                                phi, theta, dphi,
                                N_sectors, N_zones,
                                # kappa_cloud, enable_deck, enable_haze,
@@ -4734,6 +4735,6 @@ def compute_spectrum_gcm(planet, star, model, atmosphere, opac, wl,
     if (save_spectrum == True):
         write_spectrum(planet['planet_name'], model['model_name'], spectrum, wl)
 
-    print('spectrum = {}'.format(spectrum))
+    # print('spectrum = {}'.format(spectrum))
 
     return spectrum, opac, kappa_gas, kappa_Ray, kappa_cloud

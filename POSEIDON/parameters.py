@@ -573,6 +573,12 @@ def assign_free_params(param_species, object_type, PT_profile, X_profile,
                         cloud_params += ['Delta_log_P_' + aerosol]
                         cloud_params += ['log_r_m_' + aerosol]
                         cloud_params += ['log_X_' + aerosol]
+                        
+                # @charl: have added in cloud fraction parameter for Mie slab model.
+                # Patchy clouds seem to work fine in retrievals but not in forward modelling
+                # Change if broken.
+                if (cloud_dim == 2):
+                    cloud_params += ['f_cloud']
 
             elif (cloud_type == 'fuzzy_deck_plus_slab'):
                 if (aerosol_species == ['free'] or aerosol_species == ['file_read']):
@@ -1560,6 +1566,13 @@ def unpack_cloud_params(param_names, clouds_in, cloud_model, cloud_dim,
             if (TwoD_type == 'D-N'):
                 f_cloud, phi_0 = 1.0, -90.0    # Uniform axially, not-uniform along ray
                 theta_0 = clouds_in[np.where(cloud_param_names == 'theta_0')[0][0]]
+            # @charl: added if statement for cloud parameterisation for 2D Mie clouds.
+            # Parameterisation witg f_cloud currently works in retrieval but not forward models.
+            # Can remove if it breaks the code.
+            if (TwoD_type == None):
+                f_cloud = clouds_in[np.where(cloud_param_names == 'f_cloud')[0][0]]
+                # dummy variables for phi_0 and theta_0
+                phi_0, theta_0 = 0, -90.0
         
         elif (cloud_dim == 3):
             f_cloud = clouds_in[np.where(cloud_param_names == 'f_cloud')[0][0]]    

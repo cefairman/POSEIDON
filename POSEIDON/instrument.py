@@ -351,12 +351,11 @@ def make_model_data(spectrum, wl, sigma, sensitivity, bin_left, bin_cent,
         ymodel = np.zeros(shape=(N_bins))
         
         for n in range(N_bins):
-            
             # Extend convolution beyond bin edge by max(1, 2 PSF std) model grid spaces (std rounded to integer)
             extension = max(1, int(2 * sigma[n]))   
             
             # Convolve spectrum with PSF width appropriate for a given bin 
-            spectrum_conv = gauss_conv(spectrum[(bin_left[n]-extension):(bin_right[n]+extension)], 
+            spectrum_conv = gauss_conv(spectrum[(bin_left[n]-extension):(bin_right[n]+extension)],
                                        sigma=sigma[n], mode='nearest')
 
             # Catch a (surprisingly common) error
@@ -366,10 +365,10 @@ def make_model_data(spectrum, wl, sigma, sensitivity, bin_left, bin_cent,
             integrand = spectrum_conv[extension:-extension] * sensitivity[bin_left[n]:bin_right[n]]
         
             # Integrate convolved spectrum over instrument sensitivity function
-            data[n] = trapz(integrand, wl[bin_left[n]:bin_right[n]])   
+            data[n] = trapz(integrand, wl[bin_left[n]:bin_right[n]])
             ymodel[n] = data[n]/norm[n]
-            
-    # For photometric data
+
+        # For photometric data
     elif (photometric == True):
         
         integrand = spectrum[bin_left[0]:bin_right[0]]*sensitivity[bin_left[0]:bin_right[0]]
@@ -378,8 +377,152 @@ def make_model_data(spectrum, wl, sigma, sensitivity, bin_left, bin_cent,
         data = trapz(integrand, wl[bin_left[0]:bin_right[0]])
         ymodel = data/norm
         
-    return ymodel 
-    
+    return ymodel
+
+
+def make_model_data_cf(spectrum, wl, sigma, sensitivity, bin_left, bin_cent,
+                    bin_right, norm, photometric=False):
+    '''
+    Produce binned model points at the same wavelengths and spectral resolution
+    as the observed data for a single instrument.
+
+    This function conducts the following steps:
+
+    1) Convolve the model with the instrument PSF for each data point.
+    2) Integrate the convolved spectrum over the instrument sensitivity function.
+    3) Produce binned model points via normalisation of the sensitivity function.
+
+    For photometric bands, step (1) is not necessary.
+
+    Args:
+        spectrum (np.array of float):
+            Model spectrum.
+        wl (np.array of float):
+            Model wavelength grid (μm).
+        sigma (np.array of float):
+            Standard deviation of PSF for each data point (grid space unit).
+        sensitivity (np.array of float):
+            Instrument transmission function interpolated to model wavelengths.
+        bin_left (np.array of int):
+            Closest index on model grid of the left bin edge for each data point.
+        bin_cent (np.array of int):
+            Closest index on model grid of the bin centre for each data point.
+        bin_right (np.array of int):
+            Closest index on model grid of the right bin edge for each data point.
+        norm (np.array of float):
+            Normalisation constant of the transmission function for each data bin.
+        photometric (bool):
+            If True, skip the PSF convolution (e.g. for Spitzer IRAC data).
+
+    Returns:
+        ymodel (np.array of float):
+            Model spectrum convolved and binned to the data resolution.
+
+    '''
+
+    # For spectroscopic data
+    if (photometric == False):
+
+        N_bins = len(bin_cent)
+        data = np.zeros(shape=(N_bins))
+        ymodel = np.zeros(shape=(N_bins))
+
+        for n in range(N_bins):
+            # Extend convolution beyond bin edge by max(1, 2 PSF std) model grid spaces (std rounded to integer)
+            extension = max(1, int(2 * sigma[n]))
+
+            # Convolve spectrum with PSF width appropriate for a given bin
+
+            # added function in case convolution goes beyond first value of array
+            if n==0 and [bin_left[n] - extension < 0]:
+                spectrum_conv = gauss_conv(spectrum[0:(bin_right[n] + extension)],
+                                           sigma=sigma[n], mode='nearest')
+            else:
+                spectrum_conv = gauss_conv(spectrum[(bin_left[n] - extension):(bin_right[n] + extension)],
+                                       sigma=sigma[n], mode='nearest')
+            # pineapple
+            # print('bin_left[n]-extension= {},bin_right[n]+extension = {}'.format(bin_left[n]-extension, bin_right[n]+extension))
+            # print('spectrum_conv = ', spectrum_conv)
+            # print('bin_left[n] = {}, bin_right[n] = {}, extension = {}'.format(bin_left[n], bin_right[n], extension))
+            # print('spectrum = ', spectrum)
+
+            # Catch a (surprisingly common) error
+            if (len(spectrum_conv[extension:-extension]) != len(sensitivity[bin_left[n]:bin_right[n]])):
+                # pineapple
+                print(len(spectrum_conv[extension:-extension]), '::', len(sensitivity[bin_left[n]:bin_right[n]]))
+                raise Exception("Error: Model wavelength range not wide enough to encompass all data.")
+
+            integrand = spectrum_conv[extension:-extension] * sensitivity[bin_left[n]:bin_right[n]]
+            print('integrand = ', integrand)
+
+            # Integrate convolved spectrum over instrument sensitivity function
+            data[n] = trapz(integrand, wl[bin_left[n]:bin_right[n]])
+            ymodel[n] = data[n] / norm[n]
+
+        # pineapple
+        print('In make model data, data={}, ymodel={}, norm={}'.format(data, ymodel, norm))
+
+        # For photometric data
+    elif (photometric == True):
+
+        integrand = spectrum[bin_left[0]:bin_right[0]] * sensitivity[bin_left[0]:bin_right[0]]
+
+        # Integrate spectrum over instrument sensitivity function
+        data = trapz(integrand, wl[bin_left[0]:bin_right[0]])
+        ymodel = data / norm
+
+    return ymodel
+
+
+def bin_spectrum_to_data_cf(spectrum, wl, data_properties):
+    '''
+    Generate the equivalent model predicted spectrum at the spectral resolution
+    of the data. This function serves as a wrapper, unpacking the POSEIDON
+    data_properties dictionary and calling 'make_model_data' to handle the
+    binning for each instrument separately.
+
+    Args:
+        spectrum (np.array of float):
+            Model spectrum.
+        wl (np.array of float):
+            Model wavelength grid (μm).
+        data_properties (dict):
+            Collection of data properties required for POSEIDON's instrument
+            simulator (i.e. to create simulated binned data during retrievals).
+
+    Returns:
+        ymodel (np.array of float):
+            Model spectrum convolved and binned to the data resolution.
+
+    '''
+
+    # Initialise combined array of binned model points (all instruments)
+    ymodel = np.array([])
+
+    # Generate binned model points for each instrument
+    for i in range(len(data_properties['datasets'])):
+
+        if (data_properties['instruments'][i] in ['IRAC1', 'IRAC2']):
+            photometric = True
+        else:
+            photometric = False
+
+        # Find start and end indices of dataset_i in dataset property arrays
+        idx_1 = data_properties['len_data_idx'][i]
+        idx_2 = data_properties['len_data_idx'][i + 1]
+
+        # Compute binned transit depths for dataset_i
+        ymodel_i = make_model_data_cf(spectrum, wl, data_properties['psf_sigma'][idx_1:idx_2],
+                                   data_properties['sens'][i * len(wl):(i + 1) * len(wl)],
+                                   data_properties['bin_left'][idx_1:idx_2],
+                                   data_properties['bin_cent'][idx_1:idx_2],
+                                   data_properties['bin_right'][idx_1:idx_2],
+                                   data_properties['norm'][idx_1:idx_2], photometric)
+
+        # Combine binned model points for each instrument
+        ymodel = np.concatenate([ymodel, ymodel_i])
+
+    return ymodel
 
 def bin_spectrum_to_data(spectrum, wl, data_properties):
     '''
