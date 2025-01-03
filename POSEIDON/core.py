@@ -395,6 +395,7 @@ def define_model(model_name, bulk_species, param_species,
                  fix_alpha_high_res = False, fix_W_conv_high_res = False, 
                  fix_beta_high_res = True, fix_Delta_phi_high_res = True,
                  lognormal_logwidth_free = False,
+                 mmw_penalty=None
                  ):
     '''
     Create the model dictionary defining the configuration of the user-specified 
@@ -707,6 +708,7 @@ def define_model(model_name, bulk_species, param_species,
              'high_res_method': high_res_method,
              'high_res_param_names': high_res_param_names,
              'lognormal_logwidth_free' : lognormal_logwidth_free,
+             'mmw_penalty' : mmw_penalty
              }
 
             

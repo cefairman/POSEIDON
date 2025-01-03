@@ -13,6 +13,7 @@ from numba.core.decorators import jit
 from scipy.special import erfcinv
 from scipy.special import lambertw as W
 from scipy.constants import parsec
+from scipy.constants import u
 
 from .constants import R_J, R_E, M_J, M_E
 
@@ -260,6 +261,7 @@ def forward_model(param_vector, planet, star, model, opac, data, wl, P, P_ref_se
     disable_atmosphere = model['disable_atmosphere']
     PT_penalty = model['PT_penalty']
     high_res_method = model['high_res_method']
+    mmw_penalty = model['mmw_penalty']
 
     # Unpack planet and star properties
     R_p = planet['planet_radius']
@@ -411,6 +413,17 @@ def forward_model(param_vector, planet, star, model, opac, data, wl, P, P_ref_se
         else:
             ln_prior_TP = 0
 
+        
+        # if mmw_penalty is not False, store reject_mmw
+        reject_mmw = False
+        if mmw_penalty is not None:
+
+            if np.average(atmosphere['mu'])/u > mmw_penalty:
+                reject_mmw = True
+            
+                # Quit spectrum calculation
+                return 0, 0, atmosphere, ln_prior_TP, reject_mmw
+        
         #***** Step 3: generate spectrum of atmosphere ****#
 
         # For emission spectra retrievals we directly compute Fp (instead of Fp/F*)
@@ -428,7 +441,7 @@ def forward_model(param_vector, planet, star, model, opac, data, wl, P, P_ref_se
         if (np.any(np.isnan(spectrum))):
             
             # Quit if given parameter combination is unphysical
-            return 0, spectrum, atmosphere, ln_prior_TP
+            return 0, spectrum, atmosphere, ln_prior_TP, reject_mmw
 
     # For high-resolution retrievals, we skip the rest of the forward model,
     # since only the spectrum and atmosphere are needed
@@ -535,7 +548,7 @@ def forward_model(param_vector, planet, star, model, opac, data, wl, P, P_ref_se
             F_s_binned = bin_spectrum_to_data(F_s_obs, wl, data)
             ymodel = F_p_binned/F_s_binned
 
-    return ymodel, spectrum, atmosphere, ln_prior_TP
+    return ymodel, spectrum, atmosphere, ln_prior_TP, reject_mmw
 
 
 @jit(nopython = True)
@@ -947,14 +960,14 @@ def PyMultiNest_retrieval(planet, star, model, opac, data, prior_types,
 
         #***** For valid parameter combinations, run forward model *****#
 
-        ymodel, spectrum, _, ln_prior_TP = forward_model(cube, planet, star, model, opac, data, 
-                                                        wl, P, P_ref_set, R_p_ref_set, P_param_set, 
-                                                        He_fraction, N_slice_EM, N_slice_DN, 
-                                                        spectrum_type, T_phot_grid, T_het_grid, 
-                                                        log_g_phot_grid, log_g_het_grid,
-                                                        I_phot_grid, I_het_grid, y_p, F_s_obs,
-                                                        constant_gravity, chemistry_grid)
-
+        ymodel, spectrum, _, ln_prior_TP, reject_mmw = forward_model(cube, planet, star, model, opac, data, 
+                                                                        wl, P, P_ref_set, R_p_ref_set, P_param_set, 
+                                                                        He_fraction, N_slice_EM, N_slice_DN, 
+                                                                        spectrum_type, T_phot_grid, T_het_grid, 
+                                                                        log_g_phot_grid, log_g_het_grid,
+                                                                        I_phot_grid, I_het_grid, y_p, F_s_obs,
+                                                                        constant_gravity, chemistry_grid)
+        
         # Reject unphysical spectra (forced to be NaN by function above)
         if (np.any(np.isnan(spectrum))):
             
@@ -976,6 +989,16 @@ def PyMultiNest_retrieval(planet, star, model, opac, data, prior_types,
                                                    high_res_params, high_res_param_names)
             
             return loglikelihood
+        # added functionality to exclude points with unphysically high mmw 
+        if reject_mmw:
+                
+                # Assign penalty to likelihood => point ignored in retrieval
+                # issue is if too may points are ignored that are the same value, the retrival ends immediately
+                # So will use a random (large) log_likelihood
+                loglikelihood = np.random.uniform(-1e150, -1e100)
+
+                return loglikelihood
+
 
         #***** Handle error bar inflation and offsets (if optionally enabled) *****#
 
@@ -1147,14 +1170,15 @@ def retrieved_samples(planet, star, model, opac, data, retrieval_name, wl, P,
 
         param_vector = samples[sample[i],:]
 
-        ymodel, spectrum, \
-        atmosphere, _ = forward_model(param_vector, planet, star, model, opac, data, 
-                                      wl, P, P_ref_set, R_p_ref_set, P_param_set, 
-                                      He_fraction, N_slice_EM, N_slice_DN, 
-                                      spectrum_type, T_phot_grid, T_het_grid, 
-                                      log_g_phot_grid, log_g_het_grid,
-                                      I_phot_grid, I_het_grid, y_p, F_s_obs,
-                                      constant_gravity, chemistry_grid)
+        ymodel_best, spectrum_best, \
+
+        atmosphere, _, _ = forward_model(param_vector, planet, star, model, opac, data, 
+                                   wl, P, P_ref_set, R_p_ref_set, P_param_set, 
+                                   He_fraction, N_slice_EM, N_slice_DN, 
+                                   spectrum_type, T_phot_grid, T_het_grid, 
+                                   log_g_phot_grid, log_g_het_grid,
+                                   I_phot_grid, I_het_grid, y_p, F_s_obs,
+                                   constant_gravity, chemistry_grid)
 
         # Based on first model, create arrays to store retrieved temperature, spectrum, and mixing ratios
         if (i == 0):
@@ -1178,7 +1202,7 @@ def retrieved_samples(planet, star, model, opac, data, retrieval_name, wl, P,
             spectrum_stored = np.zeros(shape=(N_sample_draws, len(wl)))
 
             if model['high_res_method'] is None:
-                ymodel_samples = np.zeros(shape=(N_sample_draws, len(ymodel)))
+                ymodel_samples = np.zeros(shape=(N_sample_draws, len(ymodel_best)))
 
         if (disable_atmosphere == False):
 
@@ -1187,10 +1211,10 @@ def retrieved_samples(planet, star, model, opac, data, retrieval_name, wl, P,
             log_X_stored[i,:,:,:,:] = np.log10(atmosphere['X'])
 
         # Store spectrum in sample array
-        spectrum_stored[i,:] = spectrum
+        spectrum_stored[i,:] = spectrum_best
 
         if model['high_res_method'] is None:
-            ymodel_samples[i,:] = ymodel
+            ymodel_samples[i,:] = ymodel_best
             
     # Compute 1 and 2 sigma confidence intervals for P-T and mixing ratio profiles and spectrum
         

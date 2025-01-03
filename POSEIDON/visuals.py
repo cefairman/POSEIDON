@@ -24,10 +24,14 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from .corner import _quantile
 from .atmosphere import count_atoms
 
-plt.style.use('classic')
-plt.rc('font', family = 'serif')
+# plt.style.use('classic')
+# plt.rc('font', family = 'serif')
 matplotlib.rcParams['svg.fonttype'] = 'none'
 matplotlib.rcParams['figure.facecolor'] = 'white'
+
+#revert this after proposals
+plt.rcParams['font.family'] = 'sans-serif'
+plt.rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Liberation Sans']
 
 import warnings
 
@@ -4688,8 +4692,11 @@ def plot_histograms(planet, models, plot_parameters,
                     tick_labelsize = None, 
                     title_fontsize = None, title_vert_spacing = None,
                     custom_labels = [], custom_ticks = [],
-                    alpha_hist = 0.4, 
-                    two_sigma_upper_limits = [], two_sigma_lower_limits = []):
+                    alpha_hist = 0.4,
+                    two_sigma_upper_limits = [], two_sigma_lower_limits = [],
+                    chemistry_grid=None
+                    ):
+
     '''
     Plot a set of histograms from one or more retrievals.
 
@@ -4854,7 +4861,8 @@ def plot_histograms(planet, models, plot_parameters,
                     for i in range(N_samples):
 
                         atmosphere_i = get_retrieved_atmosphere(planet, model, np.logspace(np.log10(100.0), np.log10(1e-6), 100),
-                                                                specific_param_values = samples[i], R_p_ref_set=planet['planet_radius'])
+                                                                specific_param_values = samples[i], R_p_ref_set=planet['planet_radius'], 
+                                                                chemistry_grid=chemistry_grid)
                         
                         X_stored[i,:] = atmosphere_i['X'][:,0,0,0]
                         mu_stored[i] = atmosphere_i['mu'][0,0,0]/sc.u
@@ -5033,6 +5041,180 @@ def plot_histograms(planet, models, plot_parameters,
                                     two_sigma_lower_limits_full = two_sigma_lower_limits,
                                     )
     
+    # Save figure to file
+    if (save_fig == True):
+        if (plt_label == None):
+            file_name = (plot_dir + planet_name + '_histograms.png')
+        else:
+            file_name = (plot_dir + planet_name + '_' + plt_label + '_histograms.png')
+
+        fig.savefig(file_name, bbox_inches='tight', dpi=800)
+
+    return fig
+
+
+def plot_histograms_old(planet_name, models, plot_parameters,
+                    parameter_colour_list=[], retrieval_colour_list=[],
+                    retrieval_labels=[], span=[], truths=[], N_bins=[],
+                    He_fraction=0.17, N_rows=None, N_columns=None,
+                    axes=[], retrieval_codes=[], external_samples=[],
+                    external_param_names=[], plt_label=None,
+                    save_fig=True,
+                    vertical_lines=[], vertical_line_colors=[], tick_labelsize=8, title_fontsize=12,
+                    show_retrieved_value=True):
+    '''
+    Plot a set of histograms from one or more retrievals.
+
+    Detailed docstring TBD.
+
+    '''
+
+    N_models = len(models)
+    N_params = len(plot_parameters)
+
+    if (N_models > 10):
+        raise Exception("Max supported number of retrieval models is 10.")
+
+    if (N_models == 1) and (parameter_colour_list == []):
+        parameter_colour_list = ['darkblue', 'darkgreen', 'orangered', 'magenta',
+                                 'saddlebrown', 'grey', 'brown']
+    elif (N_models == 1) and (parameter_colour_list != []):
+        if (plot_parameters != []):
+            if (len(parameter_colour_list) != len(plot_parameters)):
+                raise Exception("Number of parameter colours does not match the " +
+                                "requested number of parameters to plot.")
+    elif (N_models >= 2) and (retrieval_colour_list == []):
+        retrieval_colour_list = ['purple', 'dodgerblue', 'forestgreen']
+    elif (N_models >= 2) and (retrieval_colour_list != []):
+        if (len(retrieval_colour_list) != N_models):
+            raise Exception("Number of retrieval colours does not match the " +
+                            "number of retrieval models.")
+
+    param_vals = []  # List to store parameter values for all models, samples, and parameters
+
+    # For each retrieval
+    for m in range(N_models):
+
+        model = models[m]
+
+        if ((retrieval_codes == []) or (retrieval_codes[m] == 'POSEIDON')):
+
+            # Unpack model and atmospheric properties
+            model_name = model['model_name']
+            chemical_species = model['chemical_species']
+            param_species = model['param_species']
+            bulk_species = model['bulk_species']
+            X_param_names = model['X_param_names']
+            Atmosphere_dimension = model['Atmosphere_dimension']
+            N_params_cum = model['N_params_cum']
+            N_species = len(chemical_species)
+
+            # Unpack number of free parameters
+            param_names = model['param_names']
+
+            # Identify output directory location
+            output_dir = './POSEIDON_output/' + planet_name + '/retrievals/'
+
+            # Identify directory location where the plot will be saved
+            plot_dir = './POSEIDON_output/' + planet_name + '/plots/'
+
+            # Load relevant output directory
+            output_prefix = model_name + '-'
+
+            # Change directory into MultiNest result file folder
+            os.chdir(output_dir + 'MultiNest_raw/')
+
+            # Run PyMultiNest analyser to extract posterior samples
+            analyzer = pymultinest.Analyzer(N_params, outputfiles_basename=output_prefix,
+                                            verbose=False)
+            samples = analyzer.get_equal_weighted_posterior()[:, :-1]
+
+            # Change directory back to directory where user's python script is located
+            os.chdir('../../../../')
+
+            # Find total number of available posterior samples from MultiNest
+            N_samples = len(samples[:, 0])
+            #   N_species_param = len(param_species)
+
+            # REPLACE BELOW WITH LOADING ATMOSPHERE OBJECT TO COMPUTE X AND
+            # ELEMENTAL RATIOS EVERYWHERE
+
+            if (Atmosphere_dimension > 1):
+                print("Note: this function is not currently configured for bulk gas " +
+                      "mixing ratios or element ratios for multidimensional retrievals")
+
+            # Create array to store the composition of the atmosphere
+            # log_X_stored = np.zeros(shape=(N_samples, N_species))
+            # CLoad mixing ratios for atmosphere
+            # for i in range(N_samples):
+
+            #   if ('H2' and 'He' in bulk_species):
+
+            # Extract mixing ratios from MultiNest samples
+            # _, _, log_X_stored[i,2:], _, _, _, _, _ = split_params(samples[i],
+            #                                                        N_params_cum)
+
+            # Add H2 and He mixing ratios
+            # X_H2 = (1.0 - np.sum(np.power(10.0, log_X_stored[i,2:])))/(1.0 + He_fraction)
+            # X_He = He_fraction*X_H2
+
+            # log_X_stored[i,0] = np.log10(X_H2)
+            # log_X_stored[i,1] = np.log10(X_He)
+
+            # else:
+
+            # Extract mixing ratios from MultiNest samples
+            #   _, _, log_X_stored[i,1:], _, _, _, _, _ = split_params(samples[i],
+            #                                                           N_params_cum)
+
+            # Add bulk mixing ratio
+            #   X_0 = 1.0 - np.sum(np.power(10.0, log_X_stored[i,1:]), axis=0)
+            #  log_X_stored[i,0] = np.log10(X_0)
+
+        # Or load samples in directly from external code
+        else:
+
+            param_names = np.array(external_param_names[m])
+            samples = external_samples[m]
+            N_samples = len(samples[:, 0])
+
+        # Create array to store parameter values for model m
+        param_samples_m = np.zeros(shape=(N_samples, N_params))
+
+        for q in range(N_params):
+
+            param = plot_parameters[q]
+
+            # QUICK FIX DO NOT KEEP THIS
+            # This is to compare old Grant et al 2023 results to new results
+            # I changed the parameter name
+            if param == 'log_P_top_slab_SiO2':
+                try:
+                    param_samples_m[:, q] = samples[:, np.where(param_names == param)[0][0]]
+                except:
+                    param = 'log_P_cloud_SiO2'
+                    param_samples_m[:, q] = samples[:, np.where(param_names == param)[0][0]]
+
+
+            else:
+                param_samples_m[:, q] = samples[:, np.where(param_names == param)[0][0]]
+        #      for j in range(len(chemical_species)):
+        #          if (chemical_species[j] in param):
+
+        #      if (param in X_param_names):
+
+        #          parameter_samples_m[:,q] = log_X_stored[:,np.where(chemical_species == param)[0][0]]
+
+        param_vals.append(param_samples_m)
+
+    fig = plot_retrieved_parameters(axes, param_vals, plot_parameters,
+                                    parameter_colour_list, retrieval_colour_list,
+                                    retrieval_labels, span, truths,
+                                    N_rows, N_columns, N_bins,
+                                    vertical_lines, vertical_line_colors, tick_labelsize=tick_labelsize,
+                                    title_fontsize=title_fontsize,
+                                    show_title=show_retrieved_value)
+
     # Save figure to file
     if (save_fig == True):
         if (plt_label == None):
