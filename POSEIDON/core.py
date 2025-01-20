@@ -395,7 +395,8 @@ def define_model(model_name, bulk_species, param_species,
                  fix_alpha_high_res = False, fix_W_conv_high_res = False, 
                  fix_beta_high_res = True, fix_Delta_phi_high_res = True,
                  lognormal_logwidth_free = False,
-                 mmw_penalty=None
+                 mmw_penalty=None,
+                 hybrid_chemistry=False, free_species=[]
                  ):
     '''
     Create the model dictionary defining the configuration of the user-specified 
@@ -568,6 +569,22 @@ def define_model(model_name, bulk_species, param_species,
                 raise Exception("A chemical species you selected is not supported " +
                                 "for equilibrium chemistry models.\n")
 
+    # @char - hybrid chemistry
+    # Raise exception if free_species is defined without hybrid_chemistry = True.
+    if not hybrid_chemistry and free_species != []:
+        raise Exception('Must set hybrid chemistry to True to define free_species.')
+
+    # For hybrid retrievals, produce species array for the equilibrium chemistry
+    if hybrid_chemistry:
+        
+        # Raise exceptions for incorrect configurations of hybrid retrievals
+        if not np.any(np.isin(free_species, param_species)):
+            raise Exception('free species must be included in parameter species')
+        if X_profile != 'chem_eq':
+            raise Exception('Hybrid chemistry can only be used when specifying X_profile=\'chem_eq\'. ')
+        if X_dim != 1:
+            raise Exception('Hybrid chemistry only supports one-dimensional chemical gradients')
+    
     # If Na_K_fixed_ratio, put K at the end of the list so that it's mixing ratio 
     # Can be appended to the end of the X_param array in 
     # profiles() in atmosphere.py 
@@ -666,7 +683,16 @@ def define_model(model_name, bulk_species, param_species,
                                       high_res_method, alpha_high_res_option,
                                       fix_alpha_high_res, fix_W_conv_high_res, 
                                       fix_beta_high_res, fix_Delta_phi_high_res,
-                                      lognormal_logwidth_free)
+                                      lognormal_logwidth_free,
+                                      free_species)
+    
+    # @char - this seems to be irrelevant after updating to 1.3.2 - commenting out in case needed
+    # If cloud_model = Mie, load in the cross section 
+    # if cloud_model == 'Mie' and aerosol_species != ['free'] and aerosol_species != ['file_read']:
+    #     aerosol_grid = load_aerosol_grid(aerosol_species)
+    # else:
+    #     aerosol_grid = None
+        
 
     # Package model properties
     model = {'model_name': model_name, 'object_type': object_type,
@@ -678,6 +704,7 @@ def define_model(model_name, bulk_species, param_species,
              'active_species': active_species, 'CIA_pairs': CIA_pairs,
              'ff_pairs': ff_pairs, 'bf_species': bf_species,
              'param_species': param_species, 
+             'free_species': free_species,
              'radius_unit': radius_unit, 'mass_unit': mass_unit,
              'distance_unit': distance_unit,
              'species_EM_gradient': species_EM_gradient,
@@ -1000,6 +1027,7 @@ def make_atmosphere(planet, model, P, P_ref, R_p_ref, PT_params = [],
     param_names = model['param_names']
     N_params_cum = model['N_params_cum']
     param_species = model['param_species']
+    free_species = model['free_species']
     X_profile = model['X_profile']
     X_dim = model['X_dim']
     TwoD_param_scheme = model['TwoD_param_scheme']
@@ -1095,7 +1123,7 @@ def make_atmosphere(planet, model, P, P_ref, R_p_ref, PT_params = [],
 
     # Recast PT and mixing ratio parameters as state arrays used by atmosphere.py
     PT_state, \
-    log_X_state = generate_state(PT_params, log_X_params, param_species, 
+    log_X_state = generate_state(PT_params, log_X_params, param_species, free_species,
                                  PT_dim, X_dim, PT_profile, X_profile, TwoD_type, 
                                  TwoD_param_scheme, species_EM_gradient, 
                                  species_DN_gradient, species_vert_gradient,
@@ -1108,7 +1136,7 @@ def make_atmosphere(planet, model, P, P_ref, R_p_ref, PT_params = [],
     X_CIA, X_ff, X_bf, \
     is_physical = profiles(P, R_p, g_p, PT_profile, X_profile, PT_state, P_ref, 
                            R_p_ref, log_X_state, chemical_species, bulk_species, 
-                           param_species, active_species, CIA_pairs, 
+                           param_species, free_species, active_species, CIA_pairs, 
                            ff_pairs, bf_species, N_sectors, N_zones, alpha, 
                            beta, phi, theta, species_vert_gradient, He_fraction,
                            T_input, X_input, P_param_set, log_P_slope_phot,

@@ -62,6 +62,7 @@ def run_retrieval(planet, star, model, opac, data, priors, wl, P,
     model_name = model['model_name']
     chemical_species = model['chemical_species']
     param_species = model['param_species']
+    free_species = model['free_species']
     param_names = model['param_names']
     stellar_contam = model['stellar_contam']
     reference_parameter = model['reference_parameter']
@@ -93,9 +94,21 @@ def run_retrieval(planet, star, model, opac, data, priors, wl, P,
     # Identify output directory location
     output_dir = './POSEIDON_output/' + planet_name + '/retrievals/'
 
+    # @char - hybrid chem changes
     # Load chemistry grid (e.g. equilibrium chemistry) if option selected
-    if X_profile == "chem_eq":
-        chemistry_grid = load_chemistry_grid(param_species, chem_grid, comm, rank)
+    if (X_profile == 'chem_eq'):
+
+        # if hybrid chemistry
+        if free_species != []:
+
+            # generate equilibrium species 
+            eq_species = np.array([species for species in param_species if ~np.isin(species, free_species)])
+            chemistry_grid = load_chemistry_grid(param_species, chem_grid, comm, rank)
+        
+        # standard equilibrium chemistry
+        else:
+            chemistry_grid = load_chemistry_grid(param_species, chem_grid, comm, rank)
+
     else:
         chemistry_grid = None
 
@@ -617,6 +630,7 @@ def PyMultiNest_retrieval(planet, star, model, opac, data, prior_types,
     # Unpack model properties
     param_names = model['param_names']
     param_species = model['param_species']
+    free_species = model['free_species']
     X_params = model['X_param_names']
     cloud_param_names = model['cloud_param_names']
     N_params_cum = model['N_params_cum']
@@ -967,7 +981,7 @@ def PyMultiNest_retrieval(planet, star, model, opac, data, prior_types,
                                                                         log_g_phot_grid, log_g_het_grid,
                                                                         I_phot_grid, I_het_grid, y_p, F_s_obs,
                                                                         constant_gravity, chemistry_grid)
-        
+
         # Reject unphysical spectra (forced to be NaN by function above)
         if (np.any(np.isnan(spectrum))):
             

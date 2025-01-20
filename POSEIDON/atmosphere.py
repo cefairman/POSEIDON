@@ -1702,7 +1702,7 @@ def elemental_ratio(included_species, X, element_1, element_2):
 
 
 def profiles(P, R_p, g_0, PT_profile, X_profile, PT_state, P_ref, R_p_ref, 
-             log_X_state, included_species, bulk_species, param_species, 
+             log_X_state, included_species, bulk_species, param_species, free_species,
              active_species, CIA_pairs, ff_pairs, bf_species, N_sectors, 
              N_zones, alpha, beta, phi, theta, species_vert_gradient, 
              He_fraction, T_input, X_input, P_param_set, 
@@ -1939,7 +1939,7 @@ def profiles(P, R_p, g_0, PT_profile, X_profile, PT_state, P_ref, R_p_ref,
         if PT_penalty == False:
             T_points = PT_state
         
-        # If PT_penalty = True, then the last parameter is sigma_s
+        # If PT_penalty = True, then the l ast parameter is sigma_s
         else:
             T_points = PT_state[:-1]
             
@@ -2033,14 +2033,42 @@ def profiles(P, R_p, g_0, PT_profile, X_profile, PT_state, P_ref, R_p_ref,
             if (chemistry_grid == None):
                 raise Exception("Error: no chemistry grid loaded for an equilibrium model")
 
-            # Unpack C/O and Metallicity 
-            C_to_O = log_X_state[0]
-            log_Met = log_X_state[1]
+            # hybrid_chemistry 
+            if free_species != []:
 
-            log_X_input = interpolate_log_X_grid(chemistry_grid, np.log10(P), T, C_to_O, log_Met, 
-                                                     param_species, return_dict = False)
+                # unpack C/O and Metallicity
+                C_to_O = log_X_state[0, 0]
+                log_Met = log_X_state[1, 0]
+
+                # split free species component from log_X_state 
+                log_X_state_free = log_X_state[2:, :]
+                X_param_free = compute_X_field_gradient(P, log_X_state_free, N_sectors, N_zones, 
+                                                        free_species, species_has_profile, 
+                                                        alpha, beta, phi, theta)
+                
+                # equilibrium log_X_input must only include the equilibrium species
+                eq_species = np.array([species for species in param_species if ~np.isin(species, free_species)])
+
+                log_X_input = interpolate_log_X_grid(chemistry_grid, np.log10(P), T, C_to_O, log_Met, 
+                                                    eq_species, return_dict = False)
+                
+            # standard equilibrium chemistry
+            else:
+
+                # Unpack C/O and Metallicity 
+                C_to_O = log_X_state[0]
+                log_Met = log_X_state[1]
+
+                log_X_input = interpolate_log_X_grid(chemistry_grid, np.log10(P), T, C_to_O, log_Met, 
+                                        param_species, return_dict = False)
+
             X_input = 10**log_X_input
             X_param = X_input
+
+            # append free species for hybrid retrieval
+            if free_species != []:
+                X_param = np.append(X_param, X_param_free, axis = 0)
+
 
             '''
             if PT_profile == 'isotherm':

@@ -22,6 +22,7 @@ def assign_free_params(param_species, bulk_species, object_type, PT_profile,
                        fix_alpha_high_res, fix_W_conv_high_res, 
                        fix_beta_high_res, fix_Delta_phi_high_res,
                        lognormal_logwidth_free,
+                       free_species
                        ):
     '''
     From the user's chosen model settings, determine which free parameters
@@ -145,6 +146,9 @@ def assign_free_params(param_species, bulk_species, object_type, PT_profile,
         lognormal_logwidth_free (bool):
             If True, has log_r_m_std_dev be a free parameter for aerosols. 
             Only applicable for certain aerosols with precomputed grids. 
+        free_species (list of str or None):
+            The free species in a hybrid chemistry retrieval. If not none, assigns log_X 
+            parameters to the species in the list. 
 
     Returns:
         params (np.array of str):
@@ -573,6 +577,10 @@ def assign_free_params(param_species, bulk_species, object_type, PT_profile,
         # If the X profile is set to chem_eq, then we have only CO and log_met
         else:
             X_params = ['C_to_O','log_Met']
+            # pineapple
+            # include free species for hybrid chemistry retrievals
+            for species in free_species:
+                X_params += ['log_' + species]
                 
         N_species_params = len(X_params)   # Store number of mixing ratio parameters
         params += X_params                 # Add mixing ratio parameter names to combined list
@@ -1020,7 +1028,7 @@ def split_params(params_drawn, N_params_cumulative):
            stellar_drawn, offsets_drawn, err_inflation_drawn, high_res_drawn
 
 
-def generate_state(PT_in, log_X_in, param_species, PT_dim, X_dim, PT_profile,
+def generate_state(PT_in, log_X_in, param_species, free_species, PT_dim, X_dim, PT_profile,
                    X_profile, TwoD_type, TwoD_param_scheme, species_EM_gradient,
                    species_DN_gradient, species_vert_gradient, alpha, beta):
     '''
@@ -1109,13 +1117,23 @@ def generate_state(PT_in, log_X_in, param_species, PT_dim, X_dim, PT_profile,
         len_X = 0
     elif (X_profile == 'chem_eq'):   # Chemical equilibrium 
         len_X = 0
+
+    # catch hybrid retrievals
+    if X_profile == 'chem_eq' and free_species != []:
+
+        len_X = 4
+        N_param_species = len(free_species)
+        PT_state = np.zeros(len_PT)
+        # shape is N_species + 2 for C/O and Z
+        log_X_state = np.zeros(shape=(N_param_species + 2, len_X))
     
-    # Store number of parametrised chemical species in model
-    N_param_species = len(param_species)
-    
-    # Initialise state arrays
-    PT_state = np.zeros(len_PT)
-    log_X_state = np.zeros(shape=(N_param_species, len_X))
+    else:
+        # Store number of parametrised chemical species in model
+        N_param_species = len(param_species)
+        
+        # Initialise state arrays
+        PT_state = np.zeros(len_PT)
+        log_X_state = np.zeros(shape=(N_param_species, len_X))
        
     #***** Process PT profile parameters into PT state array *****#    
         
@@ -1651,10 +1669,25 @@ def generate_state(PT_in, log_X_in, param_species, PT_dim, X_dim, PT_profile,
                     log_X_state[q,5] = Delta_log_X_DN_mid
                     log_X_state[q,6] = log_P_X_mid
                     log_X_state[q,7] = log_X_deep
+    
+    # define log_X_state for hybrid chemistry
+    elif free_species != []:
+
+        # fill log_X_state for C/O and log_Met. Only need to define the first value
+        log_X_state[0, 0] = log_X_in[0]
+        log_X_state[1, 0] = log_X_in[1]
+
+        # fill in the log_X_state for free species
+        log_X_state[2:,0] = log_X_in[2:]     # Assign log_X_iso to log_X_bar_term_high
+        log_X_state[2:,1] = 0.0          # No Evening-Morning gradient
+        log_X_state[2:,2] = 0.0          # No Day-Night gradient
+        log_X_state[2:,3] = log_X_in[2:]     # Assign log_X_iso to log_X_deep
+
 
     # If it is chem_eq, then we need the 
     else:
         log_X_state = log_X_in
+
                 
     return PT_state, log_X_state
 
