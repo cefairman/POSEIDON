@@ -4170,14 +4170,13 @@ def set_priors_mod(planet, star, model, data, prior_types={}, prior_ranges={}, d
 
 def compute_spectrum_gcm(planet, star, model, atmosphere, opac, wl,
                          spectrum_type='transmission', save_spectrum=False,
-                         disable_continuum=True, suppress_print=False,
+                         disable_continuum=False, suppress_print=False,
                          Gauss_quad=2, use_photosphere_radius=True,
                          device='cpu', y_p=np.array([0.0])):
     '''
     Calculate extinction coefficients, then solve the radiative transfer
     equation to compute the spectrum of the model atmosphere.
 
-    disable_continuum set to true so continuum opacities dont have to be calculated yet.
 
     My notes
     ---------
