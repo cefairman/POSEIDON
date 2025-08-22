@@ -5049,8 +5049,8 @@ def plot_histograms(planet, models, plot_parameters,
             file_name = (plot_dir + planet_name + '_' + plt_label + '_histograms.png')
 
         fig.savefig(file_name, bbox_inches='tight', dpi=800)
-
-    return fig
+#  @char: added param vals to return
+    return fig, param_vals
 
 
 def plot_histograms_old(planet_name, models, plot_parameters,
