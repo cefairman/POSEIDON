@@ -14,6 +14,8 @@ from scipy.special import erfcinv
 from scipy.special import lambertw as W
 from scipy.constants import parsec
 from scipy.constants import u
+from scipy import stats 
+from scipy.special import logsumexp
 
 from .constants import R_J, R_E, M_J, M_E
 
@@ -45,7 +47,7 @@ def run_retrieval(planet, star, model, opac, data, priors, wl, P,
                   N_live = 400, ev_tol = 0.5, sampling_algorithm = 'MultiNest', 
                   resume = False, verbose = True, sampling_target = 'parameter',
                   chem_grid = 'fastchem', N_output_samples = 1000,
-                  save_ymodel = False,
+                  save_ymodel = False, multimodal=False
                   ):
     '''
     ADD DOCSTRING (will hopefully be done before the heat death of the Universe)
@@ -179,7 +181,7 @@ def run_retrieval(planet, star, model, opac, data, priors, wl, P,
                                I_het_grid, y_p, F_s_obs, constant_gravity,
                                chemistry_grid, resume = resume, verbose = verbose,
                                outputfiles_basename = basename, 
-                               n_live_points = N_live, multimodal = False,
+                               n_live_points = N_live, multimodal = multimodal,
                                evidence_tolerance = ev_tol, log_zero = -1e90,
                                importance_nested_sampling = False, 
                                sampling_efficiency = sampling_target, 
@@ -1545,4 +1547,370 @@ def Bayesian_model_comparison(planet_name, model_1, model_2,
     # Change directory back to directory where user's python script is located
     os.chdir('../../../../')
     
-    return
+    return Bayes_factor, n_sigma
+
+
+### LOO-CV function ###
+
+
+# @char
+def get_pointwise_loglike(planet, star, model, opac, data, model_name, wl, P, 
+                        prior_types, prior_ranges, 
+                        P_ref_set = 10, R_p_ref_set = None, P_param_set = 1.0e-2, He_fraction = 0.17, 
+                        N_slice_EM = 2, N_slice_DN = 4, spectrum_type = 'transmission', 
+                        stellar_contam=None,
+                        stellar_T_step = 20, stellar_log_g_step = 0.1, 
+                        y_p = np.array([0.0]), constant_gravity=False):
+    '''
+    Need to resample the equal weighted posterior distribution to get pointwise log likelihoods for LOO-CV.
+
+    Change to total samples. 
+    def get_retrieved_atmosphere(planet, model, P, P_ref_set = 10, R_p_ref_set = None, 
+                             median = False, best_fit = True,
+                             P_param_set = 1.0e-2, He_fraction = 0.17,
+                             N_slice_EM = 2, N_slice_DN = 4, 
+                             constant_gravity = False, chemistry_grid = None,
+                             specific_param_values = [],
+                             verbose = False):
+    '''
+
+    # load_chemistry_grid 
+    
+    x_profile = model['X_profile']
+    param_species = model['param_species']
+
+    if x_profile == 'chem_eq':
+        chemistry_grid = load_chemistry_grid(param_species, 'fastchem', comm, rank)
+
+    # Unpack stellar properties
+    if (star is not None):
+        R_s = star['R_s']
+        stellar_interp_backend = star['stellar_interp_backend']
+
+    # Pre-compute stellar spectra for models with unocculted spots / faculae
+    if (stellar_contam != None):
+
+        print("Pre-computing stellar spectra...")
+
+        # Interpolate and store stellar photosphere and heterogeneity spectra
+        T_phot_grid, T_het_grid, \
+        log_g_phot_grid, log_g_het_grid, \
+        I_phot_grid, I_het_grid = precompute_stellar_spectra(comm, wl, star, prior_types, 
+                                                            prior_ranges, stellar_contam,
+                                                            stellar_T_step, stellar_log_g_step,
+                                                            stellar_interp_backend)
+
+    # No stellar grid precomputation needed for models with uniform star
+    else:
+
+        T_phot_grid, T_het_grid = None, None
+        log_g_phot_grid, log_g_het_grid = None, None
+        I_phot_grid, I_het_grid = None, None
+
+    # Interpolate stellar spectrum onto planet wavelength grid (one-time operation)
+    if (('transmission' not in spectrum_type) and (star != None)):
+
+        # Load stellar spectrum
+        F_s = star['F_star']
+        d = planet['system_distance']
+
+        # Distance only used for flux ratios, so set it to 1 since it cancels
+        if (d is None):
+            planet['system_distance'] = 1
+            d = planet['system_distance']
+
+        # Convert stellar surface flux to observed flux at Earth
+        F_s_obs = (R_s / d)**2 * F_s
+
+    # Skip for directly imaged planets or brown dwarfs
+    else:
+
+        # Stellar flux not needed for transmission spectra
+        F_s_obs = None
+
+
+
+    # Load relevant output directory
+    output_prefix = model_name + '-'
+
+    # Unpack number of free parameters
+    param_names = model['param_names']
+    N_params_cum = model['N_params_cum']
+    n_params = len(param_names)
+
+
+
+    # Change directory into MultiNest result file folder
+    planet_name = planet['planet_name']
+    output_dir = './POSEIDON_output/' + planet_name + '/retrievals/'
+    script_dir = os.getcwd()
+    os.chdir(output_dir + 'MultiNest_raw/')
+    
+    # Run PyMultiNest analyser to extract posterior samples
+    analyzer = pymultinest.Analyzer(n_params, outputfiles_basename = output_prefix,
+                                    verbose = False)
+    samples = analyzer.get_equal_weighted_posterior()[:,:-1]
+
+    # Quick! Change back!
+    os.chdir(script_dir)
+
+    # Find total number of available posterior samples from MultiNest 
+    N_samples_total = len(samples[:,0])
+
+    print("Now generating " + str(N_samples_total) + " sampled spectra and " + 
+          "P-T profiles from the posterior distribution... \n (That's ALL of it btw :) )")
+
+    # create array for pointwise loglikelihood samples
+    # shouldnt need the tests for -loglikes bc this is a sample of the pew
+    N_datapoints = len(data['wl_data'])
+    pw_loglike = np.zeros([N_datapoints, N_samples_total])
+                    
+    # Generate spectrum and PT profiles from selected samples
+    for i in range(N_samples_total):
+
+        # Estimate run time for this function based on one model evaluation
+        if (i == 0):
+            t0 = time.perf_counter()   # Time how long one model takes
+
+        param_vector = samples[i,:]
+
+        ymodel, _, \
+        atmosphere, _, _ = forward_model(param_vector, planet, star, model, opac, data, 
+                                   wl, P, P_ref_set, R_p_ref_set, P_param_set, 
+                                   He_fraction, N_slice_EM, N_slice_DN, 
+                                   spectrum_type, T_phot_grid, T_het_grid, 
+                                   log_g_phot_grid, log_g_het_grid,
+                                   I_phot_grid, I_het_grid, y_p, F_s_obs,
+                                   constant_gravity, chemistry_grid)
+        
+        #***** Handle error bar inflation and offsets (if optionally enabled) *****#
+
+        _, _, _, _, _, _, \
+        offset_params, err_inflation_params = split_params(param_vector, N_params_cum)
+        
+        # Load error bars specified in data files
+        err_data = data['err_data']
+        error_inflation = model['error_inflation']
+        offsets_applied = model['offsets_applied']
+        
+        # unlike normal LogLike, store norm as an array that gives the kth datapoint
+        pw_norm_log_default = (-0.5*np.log(2.0*np.pi*err_data*err_data))
+        
+        # Compute effective error, if unknown systematics included
+        if (error_inflation == 'Line15'):
+            err_eff_sq = (err_data*err_data + np.power(10.0, err_inflation_params[0]))
+            pw_norm_log = (-0.5*np.log(2.0*np.pi*err_eff_sq))
+        else: 
+            err_eff_sq = err_data*err_data
+            pw_norm_log = pw_norm_log_default
+
+
+        # Load transit depth data points and indices of any offset ranges
+        ydata = data['ydata']
+        offset_start = data['offset_start']
+        offset_end = data['offset_end']
+
+        offset_1_start = data['offset_1_start']
+        offset_1_end = data['offset_1_end']
+        offset_2_start = data['offset_2_start']
+        offset_2_end = data['offset_2_end']
+        offset_3_start = data['offset_3_start']
+        offset_3_end = data['offset_3_end']
+
+        # Apply relative offset between datasets
+        if (offsets_applied == 'single_dataset'):
+
+            ydata_adjusted = ydata.copy()
+
+            # One offset for one dataset
+            if offset_1_start == 0:
+                ydata_adjusted[offset_start:offset_end] -= offset_params[0]*1e-6  # Convert from ppm to transit depth
+            
+            # Else, you have multiple datasets lumped together with a single offset
+            else:
+                for n in range(len(offset_1_start)):
+                    ydata_adjusted[offset_1_start[n]:offset_1_end[n]] -= offset_params[0]*1e-6 
+
+        elif (offsets_applied == 'two_datasets'):
+
+            ydata_adjusted = ydata.copy()
+
+            # Two offsets for two datasets
+            if offset_1_start == 0:
+                ydata_adjusted[offset_start[0]:offset_end[0]] -= offset_params[0]*1e-6
+                ydata_adjusted[offset_start[1]:offset_end[1]] -= offset_params[1]*1e-6
+            
+            # Else, you have multiple datasets lumped together in both or either offset
+            else:
+                for n in range(len(offset_1_start)):
+                    ydata_adjusted[offset_1_start[n]:offset_1_end[n]] -= offset_params[0]*1e-6 
+                for m in range(len(offset_2_start)):
+                    ydata_adjusted[offset_2_start[m]:offset_2_end[m]] -= offset_params[1]*1e-6 
+
+        elif (offsets_applied == 'three_datasets'):
+
+            ydata_adjusted = ydata.copy()
+
+            # Three offsets for three dataseets
+            if offset_1_start == 0:
+                ydata_adjusted[offset_start[0]:offset_end[0]] -= offset_params[0]*1e-6
+                ydata_adjusted[offset_start[1]:offset_end[1]] -= offset_params[1]*1e-6
+                ydata_adjusted[offset_start[2]:offset_end[2]] -= offset_params[2]*1e-6
+
+            # Else, you have multiple datasets lumped together in both or either offset
+            else:
+                for n in range(len(offset_1_start)):
+                    ydata_adjusted[offset_1_start[n]:offset_1_end[n]] -= offset_params[0]*1e-6 
+                for m in range(len(offset_2_start)):
+                    ydata_adjusted[offset_2_start[m]:offset_2_end[m]] -= offset_params[1]*1e-6 
+                for s in range(len(offset_3_start)):
+                    ydata_adjusted[offset_3_start[s]:offset_3_end[s]] -= offset_params[2]*1e-6 
+            
+        else: 
+            ydata_adjusted = ydata
+
+
+        # compute log likelihood for sample i
+        pw_loglikelihood = pw_norm_log + (-0.5*((ymodel - ydata_adjusted)**2)/err_eff_sq)
+
+        # pw_loglike shape=[N_datapoints, N_samples_total])
+        pw_loglike[:, i] = pw_loglikelihood
+
+
+        if (i == 0):
+
+            # Estimate run time for this function based on one model evaluation
+            t1 = time.perf_counter()
+            total = round_sig_figs((N_samples_total * (t1-t0)/60.0), 2)  # Round to 2 significant figures
+            
+            print('This process will take approximately ' + str(total) + ' minutes (let\'s hope not...)')
+            print('The time is more what you\'d call guidelines, than actual estimates - H. Barbossa')
+            
+    
+    return pw_loglike
+
+
+
+### Addtional Stats funtions (from Thorngren , Sing , & Mukherjee (2025))
+
+def bayes_factor_to_sigma(bayes_factor):
+    '''Converts a bayes factor between two models to a probability and corresponding Bayesian Sigma. 
+    Args: 
+        bayes_factor: the Bayes factor to be converted , usually > 1 
+    Returns: 
+        The probability that the disfavored model was true given that one of the models is correct
+        (including priors), and the corresponding Bayesian sigma.'''
+
+    p = 1. / (1 + bayes_factor)
+    sigma = -stats.norm.ppf(p/2.)
+    return p, sigma
+
+
+def interpret_IC(deltaIC):
+	'''Converts a difference in AIC , BIC , DIC , BPICS , etc to a probability and its significance sigma. 
+	Args: 
+		deltaIC: The difference between the model ICs (alternate - baseline) 
+	Returns: 
+		The probability that the alternate model is incorrectly favored (exact 
+		interpretation varies by IC , but not a p-value) and the corresponding significance sigma.''' 
+
+	bayes_equiv = np.exp(-deltaIC/2.) 
+	return bayes_factor_to_sigma(bayes_equiv)
+
+
+def get_BIC(max_logl , n_data , n_params):
+	'''Calculates the BIC given the max likelihood and number of data and parameters. If you have a
+	minimum chi -squared, it may be converted using log(L) = -chiSq/2 - sum_i(log(2*pi*sigma_i)/2), 
+	where the logs are in base e and sigma_i is the uncertainty for each datapoint; the latter term 
+	cancels out in BIC comparisons if the same data is used , so can usually be omitted. 
+	Citation Schwartz (1978), DOI 10.1214/ aos /1176344136 
+	Args: 
+		max_logl: the maximum likelihood of the model. 
+		n_data: the number of datapoints the model was fit to. 
+		n_params: the number of parameters in the model. Returns: The BIC statistic for the model.'''
+
+	return -2*max_logl + n_params*np.log(n_data)
+
+
+def get_AIC(max_logl , n_params):
+	'''Calculates the AIC given the max likelihood and number of parameters. If you have a minimum 
+	chi -squared , it may be converted using log(L) = -chiSq/2 - sum_i(log(2*pi*sigma_i)/2), where
+	the logs are in base e and sigma_i is the uncertainty for each datapoint; the latter cancels out
+	in AIC comparisons if the same data is used , so can usually be omitted. 
+	Citation: Akaike (1974), DOI 10.1109/ TAC .1974.1100705 
+	Args: 
+		max_logl: the maximum likelihood of the model. 
+		n_params: the number of parameters in the model. 
+	Returns: 
+		The AIC statistic for the model.''' 
+
+	return -2*max_logl + 2* n_params
+
+
+def get_waic(pointwise_logl):
+	'''Computes the WAIC for a model given the pointwise log -likelihood. This is not normally recorded by
+	MCMC codes so you will need to specifically preserve it. In Dynesty this can be done by setting blob=True
+	in the sampler initialization and modifying the likelihood function to: 
+		[...] 
+		pointwiseLogl = stats.norm.log(yObserved , loc=yModel , scale=errors) 
+		return pointwiseLogl.sum(), pointwiseLogl 
+	The pointwise log likelihood can the be retrieved from the results object via the "blob" attribute. 
+	EMCEE has a similar system. 
+	Citation: Watanabe (2010) [no DOI] 
+	Args: 
+		pointwise_logl: the likelihood for each point and posterior sample. 
+		It should be a numpy array shaped like (n_points , n_samples). 
+	Returns: 
+		The WAIC statistic for the model.''' 
+
+	assert pointwise_logl.shape[0] > pointwise_logl.shape[1], "I␣ don 't␣ believe ␣ you ␣ have ␣ more ␣ points ␣ than ␣ posterior ␣ samples " 
+	fit_term = logsumexp(pointwise_logl , axis=0, b=1./ pointwise_logl.shape [0])
+	penalty_term = np.var(pointwise_logl , axis=0) 
+	return -2*(np.sum(fit_term) - np.sum(penalty_term))
+
+
+def get_bpics(samples_logl , n_params , log_weights=None):
+	'''Calculates the simplified Bayesian Predictive Information Criterion (BPICs) described in Ando (2011)
+	for the given sample log -likelihoods and number of parameters. Models with a lower BPICS are preferred.
+	Citation: Ando(2011), DOI 10.1080/01966324.2011.10737798  
+	Args: 
+		logLikeSamples: the natural log of the likelihood of posterior draws from an MCMC run of the model. 
+		n_params: The number of parameters for the model. 
+		logWeights: the weights of the samples given , mainly for nested sampling posteriors. 
+		For equally -weighted samples , leave as None. 
+	Returns: 
+		The computed BPICS as a float.''' 
+
+	weights = None 
+	if log_weights is not None: 
+		weights = np.exp(log_weights - np.max(log_weights)) 
+		weights = (weights / np.sum(weights)) 
+	mean_logl = np.average(samples_logl , weights=weights)
+	return -2*mean_logl + 2* n_params
+
+
+def get_dic(logl_samples , logl_at_mean , alternate_pd=False):
+	'''Calculates the Deviance Information Criterion (DIC) for the given sample log -liklihoods , using the
+	Ando (2011) variant and the Gelman (2014) number of effective parameters formula. Models with lower DIC
+	are preferred.  
+	Args: 
+		logl_samples: the natural log of the likelihood of posterior draws from the MCMC run; 
+		should be an array of length [nsamples]. 
+		loglike_at_mean: the natural log of the likelihood at the posterior mean of the parameters 
+		(not the mean or max of the log likelihood!)
+		alternate_pd: A flag indicating whether to use the Gelman (2014) effective parameters formula
+		rather than the default Spiegelhalter (2012) formula. Somewhat less numerically stable , if used
+		ensure you have a well -converged posterior with plenty of samples. 
+	Returns: 
+		The computed DIC as a float.''' 
+
+	meanLikelihood = np.mean(logl_samples) 
+	if alternate_pd: 
+		nEffectiveParams = 2*np.var(logl_samples) 
+	else: 
+		nEffectiveParams = 2*logl_at_mean - 2*meanLikelihood 
+	print(meanLikelihood , nEffectiveParams) 
+	return -2*meanLikelihood + 3* nEffectiveParams
+        
+
+                            
