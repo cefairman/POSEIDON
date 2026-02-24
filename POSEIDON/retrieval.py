@@ -1160,7 +1160,7 @@ def retrieved_samples(planet, star, model, opac, data, retrieval_name, wl, P,
     
     # Calculate best-fitting spectrum and PT profile
     ymodel_best, spectrum_best, \
-    atmosphere_best, _ = forward_model(best_fit_params, planet, star, model, opac, data, 
+    atmosphere_best, _, _ = forward_model(best_fit_params, planet, star, model, opac, data, 
                                        wl, P, P_ref_set, R_p_ref_set, P_param_set, 
                                        He_fraction, N_slice_EM, N_slice_DN, 
                                        spectrum_type, T_phot_grid, T_het_grid, 
@@ -1188,7 +1188,7 @@ def retrieved_samples(planet, star, model, opac, data, retrieval_name, wl, P,
 
         ymodel_best, spectrum_best, \
 
-        atmosphere, _, _ = forward_model(param_vector, planet, star, model, opac, data, 
+        _, _, atmosphere, _, _ = forward_model(param_vector, planet, star, model, opac, data, 
                                    wl, P, P_ref_set, R_p_ref_set, P_param_set, 
                                    He_fraction, N_slice_EM, N_slice_DN, 
                                    spectrum_type, T_phot_grid, T_het_grid, 
@@ -1485,7 +1485,8 @@ def Z_to_sigma(ln_Z1, ln_Z2):
 
 def Bayesian_model_comparison(planet_name, model_1, model_2,
                               ln_Z_format = '{:.2f}', B_format = '{:.2e}',
-                              ln_B_format = '{:.2f}', sigma_format = '{:.1f}'):
+                              ln_B_format = '{:.2f}', sigma_format = '{:.1f}',
+                              ):
     '''    
     Conduct Bayesian model comparison between the outputs of two retrievals. 
     This function outputs the Bayes factor and equivalent sigma significance 
@@ -1581,6 +1582,8 @@ def get_pointwise_loglike(planet, star, model, opac, data, model_name, wl, P,
 
     if x_profile == 'chem_eq':
         chemistry_grid = load_chemistry_grid(param_species, 'fastchem', comm, rank)
+    else: 
+        chemistry_grid = None
 
     # Unpack stellar properties
     if (star is not None):

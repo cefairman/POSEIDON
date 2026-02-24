@@ -753,7 +753,7 @@ def stellar_contamination_single_spot(f, I_het, I_phot):
     return epsilon
 
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def stellar_contamination_general(f_het, I_het, I_phot):
     '''
     Computes the multiplicative stellar contamination factor for a transmission

@@ -764,6 +764,7 @@ def opacity_tables(rank, comm, wl_model, chemical_species, active_species,
 
         # Find the directory where the user downloaded the POSEIDON opacity data
         input_file_path = os.environ.get("POSEIDON_input_data")
+        input_file_path_1p2 = '/home/qe18916/POSEIDON/inputs_old/'
 
         if input_file_path == None:
             raise Exception("POSEIDON cannot locate the input folder.\n" +
@@ -789,7 +790,7 @@ def opacity_tables(rank, comm, wl_model, chemical_species, active_species,
 
                 # Backwards compatibility with v1.2 database
                 elif (database_version == '1.2'):
-                    opac_file = h5py.File(input_file_path + '/opacity/Opacity_database_v1.2.hdf5', 'r')
+                    opac_file = h5py.File(input_file_path_1p2 + '/opacity/Opacity_database_v1.2.hdf5', 'r')
 
                 # Or for backwards compatibility, you can use the old v1.0 database
                 # (this file used to be called 'Opacity_database_0.01cm-1.hdf5')
@@ -1031,7 +1032,7 @@ def opacity_tables(rank, comm, wl_model, chemical_species, active_species,
            sigma_Mie_stored, aerosol_wl_grid, aerosol_r_m_grid, aerosol_log_r_m_std_dev_grid
 
 
-@jit(nopython = True)
+@jit(nopython = True) #@char (undo this)
 def extinction(chemical_species, active_species, cia_pairs, ff_pairs, bf_species,
                n, T, P, wl, X, X_active, X_cia, X_ff, X_bf, a, gamma, P_cloud, 
                kappa_cloud_0, sigma_stored, cia_stored, Rayleigh_stored, ff_stored, 
@@ -1800,7 +1801,7 @@ def extinction_LBL(chemical_species, active_species, cia_pairs, ff_pairs,
 
         # Backwards compatibility with v1.2 database
         elif (database_version == '1.2'):
-            opac_file = h5py.File(input_file_path + '/opacity/Opacity_database_v1.2.hdf5', 'r')
+            opac_file = h5py.File(input_file_path_1p2 + '/opacity/Opacity_database_v1.2.hdf5', 'r')
 
         # Or for backwards compatibility, you can use the old v1.0 database
         # (this file used to be called 'Opacity_database_0.01cm-1.hdf5')

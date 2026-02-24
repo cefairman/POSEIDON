@@ -286,7 +286,7 @@ def _hist2d(x, y, smooth=0.02, span=None, weights=None, levels=None,
     try:
         H, X, Y = np.histogram2d(x.flatten(), y.flatten(), bins=bins,
                                  range=list(map(np.sort, span)),
-                                 weights=weights)
+                                 weights=weights, density=True)
     except ValueError:
         raise ValueError("It looks like at least one of your sample columns "
                          "have no dynamic range.")
@@ -379,13 +379,14 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
                colour_plt='purple', colour_quantile='blue', smooth_hist=30, 
                smooth_corr=0.02, hist_kwargs=None, hist2d_kwargs=None, 
                labels=None, param_names=None, label_kwargs=None,
-               show_titles=True, title_kwargs=None, title_fontsize = 12,
+               show_titles=True, title_kwargs=None, title_fontsize = 12, 
                truths=None, truth_colour='red', truth_kwargs=None, 
                max_n_ticks=5, top_ticks=False, use_math_text=False, 
                verbose=False, fig=None, model_idx = None, 
                two_sigma_upper_limits = [], two_sigma_lower_limits = [],
                title_vertical_padding = 0.1,
                overplot=False,
+               spans = []
                ):
     '''
     Generate a corner plot of the 1D and 2D marginalised posteriors.
@@ -521,13 +522,15 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
     if nsamps != weights.shape[0]:
         raise ValueError("The number of weights and samples disagree!")
 
-    # make span largest of each model, create a spans zero array 
+
+    # Determine plotting bounds.
+
+    # make span largest of each model, create a spans zero array - @char
+    print(spans)
     if spans == []:
         spans = np.zeros([len(samples), 2])
     # want to get all spans updated for overplotting before starting the loop - else some will not be defined
 
-
-    # Determine plotting bounds.
     if span is None:
         span = [0.999999426697 for i in range(ndim)]
     span = list(span)
@@ -539,6 +542,16 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
         except:
             q = [0.5 - 0.5 * span[i], 0.5 + 0.5 * span[i]]
             span[i] = _quantile(samples[i], q, weights=weights)
+    
+    # loop through samples before plotting loop to ensure 2d overplot spans are defined - @char
+    for i, span_i in enumerate(span):
+
+        # update spans with maximum value
+        if spans[i].all() == 0:
+            span_max = span[i]
+        else:
+            span_max = [np.min([spans[i, 0], span_i[0]]), np.max([spans[i, 1], span_i[1]])]
+        spans[i] = span_max
 
     # Set labels
     if labels is None:
@@ -584,10 +597,10 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
         param_name = param_names[i]
         sx_hist = smooth_hist[i]
         if isinstance(sx_hist, int_type):
-            n, b = np.histogram(x, bins=sx_hist, weights=weights, range=np.sort(span[i]))
+            n, b = np.histogram(x, bins=sx_hist, weights=weights, range=np.sort(span[i]), density=True)
         else:
             bins = int(round(10. / sx_hist))
-            n, b = np.histogram(x, bins=bins, weights=weights, range=np.sort(span[i]))
+            n, b = np.histogram(x, bins=bins, weights=weights, range=np.sort(span[i]), density=True)
             n = norm_kde(n, 10.)
         
         # Update the global maximum histogram value for this parameter
@@ -602,24 +615,15 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
     for i, x in enumerate(samples):
         sx_hist = smooth_hist[i]
         if isinstance(sx_hist, int_type):
-            n, b = np.histogram(x, bins=sx_hist, weights=weights, range=np.sort(span[i]))
+            n, b = np.histogram(x, bins=sx_hist, weights=weights, range=np.sort(span[i]), density=True)
         else:
             bins = int(round(10. / sx_hist))
-            n, b = np.histogram(x, bins=bins, weights=weights, range=np.sort(span[i]))
+            n, b = np.histogram(x, bins=bins, weights=weights, range=np.sort(span[i]), density=True)
             n = norm_kde(n, 10.)
         max_hist_values[i] = max(max_hist_values[i], max(n))
 
-    # loop through samples before plotting loop to ensure 2d overplot spans are defined
-    for i, span_i in enumerate(span):
-
-        # update spans with maximum value
-        if spans[i].all() == 0:
-            span_max = span[i]
-        else:
-            span_max = [np.min([spans[i, 0], span_i[0]]), np.max([spans[i, 1], span_i[1]])]
-        spans[i] = span_max
-
     # Plotting.
+
     for i, x in enumerate(samples):
         
         param_name = param_names[i]
@@ -632,7 +636,7 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
         # Plot the 1-D marginalized posteriors.
 
         # Setup axes
-        ax.set_xlim(spans[i])
+        ax.set_xlim(spans[i]) # @char
         if max_n_ticks == 0:
             ax.xaxis.set_major_locator(NullLocator())
             ax.yaxis.set_major_locator(NullLocator())
@@ -654,6 +658,7 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
             [l.set_rotation(45) for l in ax.get_xticklabels()]
             ax.set_xlabel(labels[i], **label_kwargs)
             ax.xaxis.set_label_coords(0.5, -0.3)
+        ax.tick_params(axis='x')
         
         # Generate distribution
         sx_hist = smooth_hist[i]
@@ -662,7 +667,7 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
             # `sx` bins within the provided bounds.
             n, b, _ = ax.hist(x, bins=sx_hist, weights=weights, color=colour_plt,
                               edgecolor='black', lw = 0.8,
-                              range=np.sort(span[i]), alpha = 0.6,
+                              range=np.sort(spans[i]), alpha = 0.6, density=True,
                               **hist_kwargs)
             # Add border
          #   n, b, _ = ax.hist(x, bins=sx_hist, weights=weights, edgecolor='black',
@@ -675,12 +680,12 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
             # filter to smooth the results.
             bins = int(round(10. / sx_hist))
             n, b = np.histogram(x, bins=bins, weights=weights,
-                                range=np.sort(spans[i]))
+                                range=np.sort(span[i]), density=True)
             n = norm_kde(n, 10.)
             b0 = 0.5 * (b[1:] + b[:-1])
             n, b, _ = ax.hist(b0, bins=b, weights=n,
-                              range=np.sort(span[i]), color=colour_plt,
-                              edgecolor='None', alpha = 0.6,
+                              range=np.sort(spans[i]), color=colour_plt,
+                              edgecolor='None', alpha = 0.6, density=True,
                               **hist_kwargs)
             # Add border
           #  n, b, _ = ax.hist(b0, bins=b, weights=n,
@@ -690,9 +695,9 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
             
         # Set the y-axis limit based on the global maximum value
         if model_idx is not None:
-            ax.set_ylim([0., global_max_hist_values[param_name] * 1.05])
+            ax.set_ylim([0., global_max_hist_values[param_name] * 1.1])
         else:
-            ax.set_ylim([0., max_hist_values[i] * 1.05])
+            ax.set_ylim([0., max_hist_values[i] * 1.1])
 
 
         # Plot quantiles.
@@ -726,7 +731,7 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
                                 xycoords=('data', 'axes fraction'), textcoords=('data', 'axes fraction'),
                                 arrowprops=dict(facecolor=colour_quantile_plt, color = colour_quantile_plt, 
                                                 edgecolor=colour_quantile_plt, arrowstyle='<|-', lw=2, ls='-',
-                                                shrinkA=0, shrinkB=0))
+                                                shrinkA=0, shrinkB=0)) 
                     if verbose:
                         print("Quantiles:")
                         print(labels[i] + ": 2 sigma upper = " + str(qh))
@@ -885,6 +890,7 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
                 [l.set_rotation(45) for l in ax.get_yticklabels()]
                 ax.set_ylabel(labels[i], **label_kwargs)
                 ax.yaxis.set_label_coords(-0.3, 0.5)
+            ax.tick_params(axis='both')
             # Generate distribution.
             sx_corr = smooth_corr[j]
             sy_corr = smooth_corr[j]
@@ -921,7 +927,7 @@ def cornerplot(results, span=None, quantiles=[0.1587, 0.5, 0.8413],
                         ax.axhline(truths[i], color=truth_colour,
                                    **truth_kwargs)
     if overplot:
-        return (fig, axes)
+        return (fig, axes), spans
     else:
         return (fig, axes)
 
@@ -930,7 +936,7 @@ def generate_cornerplot(planet, model, params_to_plot = None,
                         retrieval_name = None, true_vals = None,
                         colour_scheme = '#984ea3', span = None, corner_name = None,
                         two_sigma_upper_limits = [], two_sigma_lower_limits = [],
-                        N_bins = 30,
+                        N_bins = 30, spans = []
                         ):
     '''
     Generate giant triangle plot of doom to visualise the results of a 
@@ -1047,7 +1053,8 @@ def generate_cornerplot(planet, model, params_to_plot = None,
                                               'levels': levels,
                                               'plot_datapoints': False},
                                two_sigma_upper_limits=two_sigma_upper_limits,
-                               two_sigma_lower_limits=two_sigma_lower_limits
+                               two_sigma_lower_limits=two_sigma_lower_limits,
+                               spans = spans
                               )
 
         # Set plot file name
@@ -1172,7 +1179,7 @@ def generate_overplot(planet, models, params_to_plot = None,
                       two_sigma_upper_limits = [], two_sigma_lower_limits = [],
                       external_samples = [], external_param_names = [],
                       title_vertical_padding = 0.1, N_bins = 30,
-                      colour_legend = False
+                      colour_patch = False
                       ):
     '''
     Generate overplotted giant triangle plot of doom to visualise the results 
@@ -1213,6 +1220,8 @@ def generate_overplot(planet, models, params_to_plot = None,
             Your new triangle plot of doom. Use responsibly!
 
     '''
+    # first instance of spans is empty list - @char 
+    spans = []
 
     # Only generate a cornerplot using the first core
     if rank == 0:
@@ -1236,11 +1245,11 @@ def generate_overplot(planet, models, params_to_plot = None,
             model_display_names = [model["model_name"] for model in models]
 
         # @char was in span update that has since been updated in main
-        # for model_i, model in enumerate(models):
-        #     # Unpack model properties
-        #     model_name = model["model_name"]
-        #     param_names = model["param_names"]
-        #     n_params = len(param_names)
+        for model_i, model in enumerate(models):
+            # Unpack model properties
+            model_name = model["model_name"]
+            param_names = model["param_names"]
+            n_params = len(param_names)
 
         # Calculate 2D levels for 1, 2, 3 sigma contours
         levels = 1.0 - np.exp(-0.5 * np.array([1.0, 2.0, 3.0]) ** 2)
@@ -1317,7 +1326,7 @@ def generate_overplot(planet, models, params_to_plot = None,
                 results = dict(samples=samples, weights=weights, logvol=None)
 
             # Generate corner plot
-            existing_fig = cornerplot(results,
+            existing_fig, existing_spans = cornerplot(results,
                                       quantiles=[0.1587, 0.5, 0.8413],
                                       smooth_hist=N_bins,
                                       smooth_corr=0.02,
@@ -1337,25 +1346,37 @@ def generate_overplot(planet, models, params_to_plot = None,
                                                     'levels': levels,
                                                     'plot_datapoints': False,
                                                     },
-                                      fig=existing_fig,
+                                      fig=(existing_fig),
                                       model_idx=m,
                                       two_sigma_upper_limits=two_sigma_upper_limits,
                                       two_sigma_lower_limits=two_sigma_lower_limits,
                                       title_vertical_padding=title_vertical_padding,
+                                      overplot = True,
+                                      spans = spans
                                      )
-
-            if not colour_legend:
-                existing_fig[0].text(
-                    0.6,
-                    0.75 + 0.05 * m,
-                    colour_schemes[m].capitalize()
-                    + ": "
-                    + model_display_names[m],
-                    horizontalalignment="left",
-                    fontsize=20,
-                    color=colour_schemes[m],
-                )
-                
+            
+            # @char - colour patch addition 
+            if not colour_patch:
+                # catch colourmaps being used in the colour scheme - dont plot the colour name
+                if not isinstance(colour_schemes[0], str):
+                    existing_fig.text(0.7, (0.75 + 0.05 * m),
+                        model_display_names[m],
+                        horizontalalignment='left',
+                        fontsize=annotation_text_size,
+                        color=colour_schemes[m],
+                        )
+                else:
+                    existing_fig[0].text(
+                        0.6,
+                        0.75 + 0.05 * m,
+                        colour_schemes[m].capitalize()
+                        + ": "
+                        + model_display_names[m],
+                        horizontalalignment="left",
+                        fontsize=20,
+                        color=colour_schemes[m],
+                    )
+   
             else:
                 # generate patches for legend
                 legend_elements = [
@@ -1363,12 +1384,16 @@ def generate_overplot(planet, models, params_to_plot = None,
                 for i in range(len(models))
                 ]
 
-            existing_fig[0].text(0.7, (0.75 + 0.05 * m),
-                                 model_display_names[m],
-                                 horizontalalignment='left',
-                                 fontsize=annotation_text_size,
-                                 color=colour_schemes[m],
-                                 )
+                existing_fig[0].legend(legend_elements,
+                                    model_display_names,
+                                    loc='upper right',
+                                    fontsize=20,
+                                    frameon=False
+                                    )
+                
+                spans = existing_spans # update spans - @char 
+
+
 
         # Save corner plot in results directory
         if (overplot_name is None):

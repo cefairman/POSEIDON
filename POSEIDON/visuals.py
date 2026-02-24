@@ -4445,10 +4445,10 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
 
                   #  ax.set_title(title, fontsize = title_fontsize)
 
-                    # Plot median and +/- 1σ confidence intervals
-                    ax.axvline(median, lw=2, ls="-", alpha=0.7, color=constraint_colour)
-                    ax.axvline(low1, lw=1, ls="dashed", color=constraint_colour)
-                    ax.axvline(high1, lw=1, ls="dashed", color=constraint_colour)
+                    # Plot median and +/- 1σ confidence intervals @char
+                    # ax.axvline(median, lw=2, ls="-", alpha=0.7, color=constraint_colour)
+                    # ax.axvline(low1, lw=1, ls="dashed", color=constraint_colour)
+                    # ax.axvline(high1, lw=1, ls="dashed", color=constraint_colour)
 
                 # Title has 2 sigma upper/lower limits where user flags the given parameter
                 else:
@@ -4519,10 +4519,10 @@ def plot_retrieved_parameters(axes_in, param_vals, plot_parameters, parameter_co
                         title = title.format(fmt(median), fmt((median-low1)), fmt((high1-median)))
                         title = "{0} = {1}".format(param_label, title)
 
-                        # Plot median and +/- 1σ confidence intervals
-                        ax.axvline(median, lw=2, ls="-", alpha=0.7, color=constraint_colour)
-                        ax.axvline(low1, lw=1, ls="dashed", color=constraint_colour)
-                        ax.axvline(high1, lw=1, ls="dashed", color=constraint_colour)
+                        # Plot median and +/- 1σ confidence intervals @char
+                        # ax.axvline(median, lw=2, ls="-", alpha=0.7, color=constraint_colour)
+                        # ax.axvline(low1, lw=1, ls="dashed", color=constraint_colour)
+                        # ax.axvline(high1, lw=1, ls="dashed", color=constraint_colour)
 
                 
                 top_y = 1.05 + ((N_models-1)*title_vert_spacing)
@@ -4692,7 +4692,7 @@ def plot_histograms(planet, models, plot_parameters,
                     tick_labelsize = None, 
                     title_fontsize = None, title_vert_spacing = None,
                     custom_labels = [], custom_ticks = [],
-                    alpha_hist = 0.4,
+                    alpha_hist = 0.7, #0.4 @char
                     two_sigma_upper_limits = [], two_sigma_lower_limits = [],
                     chemistry_grid=None
                     ):
